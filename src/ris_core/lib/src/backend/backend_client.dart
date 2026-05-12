@@ -120,6 +120,33 @@ class BackendClient {
     return _parseReceiptListResponse(response.body);
   }
 
+  Future<void> deleteReceipt(ReceiptId receiptId) async {
+    final response = await _sendDelete('/v1/receipts/${receiptId.value}');
+    if (response.statusCode != 204) {
+      throw BackendClientHttpException(
+        statusCode: response.statusCode,
+        responseBody: response.body,
+        message: 'Backend service returned an unsuccessful delete response.',
+      );
+    }
+  }
+
+  Future<BackendReceiptImage> getReceiptImage(ReceiptId receiptId) async {
+    final response = await _sendGet('/v1/receipts/${receiptId.value}/image');
+    if (response.statusCode != 200) {
+      throw BackendClientHttpException(
+        statusCode: response.statusCode,
+        responseBody: response.body,
+        message: 'Backend service returned an unsuccessful image response.',
+      );
+    }
+
+    return BackendReceiptImage(
+      mimeType: response.headers['content-type'] ?? 'application/octet-stream',
+      bytes: response.bodyBytes,
+    );
+  }
+
   void close() {
     if (_ownsHttpClient) {
       _httpClient.close();
@@ -183,6 +210,24 @@ class BackendClient {
     }
   }
 
+  Future<http.Response> _sendDelete(String path) async {
+    try {
+      return await _httpClient
+          .delete(config.baseUri.resolve(path))
+          .timeout(config.timeout);
+    } on TimeoutException catch (error) {
+      throw BackendClientTransportException(
+        'Backend service request timed out.',
+        cause: error,
+      );
+    } on http.ClientException catch (error) {
+      throw BackendClientTransportException(
+        'Backend service request failed.',
+        cause: error,
+      );
+    }
+  }
+
   ReceiptResponseDto _parseReceiptResponse(String source) {
     try {
       final json = _asJsonMap(jsonDecode(source), 'backend receipt response');
@@ -216,6 +261,13 @@ class BackendClient {
       );
     }
   }
+}
+
+class BackendReceiptImage {
+  const BackendReceiptImage({required this.mimeType, required this.bytes});
+
+  final String mimeType;
+  final List<int> bytes;
 }
 
 class BackendClientException implements Exception {

@@ -10,5 +10,7 @@ abstract interface class ImageStorageRepository {
     required List<int> bytes,
   });
 
+  Future<List<int>> read(String storagePath);
+
   Future<void> delete(String storagePath);
 }

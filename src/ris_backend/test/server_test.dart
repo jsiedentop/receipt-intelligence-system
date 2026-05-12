@@ -207,6 +207,84 @@ void main() {
     expect(oversizedPageResponse.statusCode, 400);
   });
 
+  test('returns original image bytes for a stored receipt', () async {
+    final createResponse = await _uploadFile(
+      backendBaseUri.resolve('/v1/receipts'),
+      '../../data/receipt-1.png',
+      contentType: MediaType('image', 'png'),
+    );
+    final createdBody = jsonDecode(createResponse.body) as Map<String, dynamic>;
+    final receiptId = createdBody['id'] as String;
+
+    final imageResponse = await http.get(
+      backendBaseUri.resolve('/v1/receipts/$receiptId/image'),
+    );
+
+    expect(imageResponse.statusCode, 200);
+    expect(imageResponse.headers['content-type'], startsWith('image/png'));
+    expect(imageResponse.bodyBytes, isNotEmpty);
+  });
+
+  test('deletes a receipt and removes it from api responses', () async {
+    final createResponse = await _uploadFile(
+      backendBaseUri.resolve('/v1/receipts'),
+      '../../data/receipt-1.png',
+      contentType: MediaType('image', 'png'),
+    );
+    final createdBody = jsonDecode(createResponse.body) as Map<String, dynamic>;
+    final receiptId = createdBody['id'] as String;
+    final storagePath = createdBody['image']['storagePath'] as String;
+    final storedImage = File(path.join(tempDirectory.path, storagePath));
+
+    final deleteResponse = await http.delete(
+      backendBaseUri.resolve('/v1/receipts/$receiptId'),
+    );
+    final getResponse = await http.get(
+      backendBaseUri.resolve('/v1/receipts/$receiptId'),
+    );
+    final imageResponse = await http.get(
+      backendBaseUri.resolve('/v1/receipts/$receiptId/image'),
+    );
+    final listResponse = await http.get(
+      backendBaseUri.resolve('/v1/receipts?page=1&pageSize=20'),
+    );
+    final listedReceipts = jsonDecode(listResponse.body) as List<dynamic>;
+
+    expect(deleteResponse.statusCode, 204);
+    expect(getResponse.statusCode, 404);
+    expect(imageResponse.statusCode, 404);
+    expect(await storedImage.exists(), isFalse);
+    expect(
+      listedReceipts.where(
+        (entry) => (entry as Map<String, dynamic>)['id'] == receiptId,
+      ),
+      isEmpty,
+    );
+  });
+
+  test('allows deleting a receipt while extraction is still active', () async {
+    final createResponse = await _uploadFile(
+      backendBaseUri.resolve('/v1/receipts'),
+      '../../data/receipt-1.png',
+      contentType: MediaType('image', 'png'),
+    );
+    final createdBody = jsonDecode(createResponse.body) as Map<String, dynamic>;
+    final receiptId = createdBody['id'] as String;
+
+    final deleteResponse = await http.delete(
+      backendBaseUri.resolve('/v1/receipts/$receiptId'),
+    );
+
+    expect(deleteResponse.statusCode, 204);
+
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
+
+    final getResponse = await http.get(
+      backendBaseUri.resolve('/v1/receipts/$receiptId'),
+    );
+    expect(getResponse.statusCode, 404);
+  });
+
   test('returns 415 for unsupported file types', () async {
     final invalidFile = File(path.join(tempDirectory.path, 'invalid.txt'));
     await invalidFile.writeAsString('not an image');

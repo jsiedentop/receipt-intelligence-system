@@ -6,7 +6,9 @@ import 'package:shelf/shelf.dart';
 import 'api/handlers/receipt_handler.dart';
 import 'api/router.dart';
 import 'application/use_cases/create_receipt.dart';
+import 'application/use_cases/delete_receipt.dart';
 import 'application/use_cases/get_receipt.dart';
+import 'application/use_cases/get_receipt_image.dart';
 import 'application/use_cases/list_receipts.dart';
 import 'application/use_cases/process_receipt_extraction.dart';
 import 'application/use_cases/restart_receipt_extraction.dart';
@@ -48,8 +50,16 @@ Future<Handler> buildHandler(BackendConfig config) async {
   final getReceiptUseCase = GetReceiptUseCase(
     receiptRepository: receiptRepository,
   );
+  final getReceiptImageUseCase = GetReceiptImageUseCase(
+    receiptRepository: receiptRepository,
+    imageStorageRepository: imageStorageRepository,
+  );
   final listReceiptsUseCase = ListReceiptsUseCase(
     receiptRepository: receiptRepository,
+  );
+  final deleteReceiptUseCase = DeleteReceiptUseCase(
+    receiptRepository: receiptRepository,
+    imageStorageRepository: imageStorageRepository,
   );
   final restartReceiptExtractionUseCase = RestartReceiptExtractionUseCase(
     receiptRepository: receiptRepository,
@@ -57,7 +67,9 @@ Future<Handler> buildHandler(BackendConfig config) async {
   );
   final receiptHandler = ReceiptHandler(
     createReceiptUseCase: createReceiptUseCase,
+    deleteReceiptUseCase: deleteReceiptUseCase,
     getReceiptUseCase: getReceiptUseCase,
+    getReceiptImageUseCase: getReceiptImageUseCase,
     listReceiptsUseCase: listReceiptsUseCase,
     restartReceiptExtractionUseCase: restartReceiptExtractionUseCase,
   );

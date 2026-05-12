@@ -276,6 +276,25 @@ class SqliteReceiptRepository implements ReceiptRepository {
     }
   }
 
+  @override
+  Future<void> delete(ReceiptId receiptId) async {
+    try {
+      final rows = _database.select(
+        'SELECT id FROM receipts WHERE id = ?;',
+        [receiptId.value],
+      );
+      if (rows.isEmpty) {
+        throw ReceiptNotFoundException('Receipt "${receiptId.value}" was not found.');
+      }
+
+      _database.execute('DELETE FROM receipts WHERE id = ?;', [receiptId.value]);
+    } on AppException {
+      rethrow;
+    } catch (error) {
+      throw PersistenceException('Failed to delete receipt.', cause: error);
+    }
+  }
+
   sqlite.Row _selectReceiptRow(ReceiptId receiptId) {
     final rows = _database.select(
       '''

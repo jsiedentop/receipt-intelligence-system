@@ -11,8 +11,10 @@ Handler buildRouter({required ReceiptHandler receiptHandler}) {
     ..get('/healthz', _healthHandler)
     ..get('/v1/receipts', receiptHandler.list)
     ..post('/v1/receipts', receiptHandler.create)
+    ..get('/v1/receipts/<receiptId>/image', receiptHandler.getImage)
     ..get('/v1/receipts/<receiptId>', receiptHandler.getById)
-    ..post('/v1/receipts/<receiptId>/extractions', receiptHandler.restartExtraction);
+    ..post('/v1/receipts/<receiptId>/extractions', receiptHandler.restartExtraction)
+    ..delete('/v1/receipts/<receiptId>', receiptHandler.delete);
 
   return Pipeline().addMiddleware(logRequests()).addHandler(router.call);
 }

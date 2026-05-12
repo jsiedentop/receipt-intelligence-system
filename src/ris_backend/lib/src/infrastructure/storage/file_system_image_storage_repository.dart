@@ -48,6 +48,20 @@ class FileSystemImageStorageRepository implements ImageStorageRepository {
   }
 
   @override
+  Future<List<int>> read(String storagePath) async {
+    try {
+      final absolutePath = path.join(dataDirectoryPath, storagePath);
+      final file = File(absolutePath);
+      if (!await file.exists()) {
+        throw const FileSystemException('Stored image was not found.');
+      }
+      return file.readAsBytes();
+    } catch (error) {
+      throw StorageWriteException('Failed to read stored image.', cause: error);
+    }
+  }
+
+  @override
   Future<void> delete(String storagePath) async {
     try {
       final absolutePath = path.join(dataDirectoryPath, storagePath);

@@ -7,7 +7,9 @@ import 'package:shelf_router/shelf_router.dart';
 
 import '../mappers/receipt_response_mapper.dart';
 import '../../application/use_cases/create_receipt.dart';
+import '../../application/use_cases/delete_receipt.dart';
 import '../../application/use_cases/get_receipt.dart';
+import '../../application/use_cases/get_receipt_image.dart';
 import '../../application/use_cases/list_receipts.dart';
 import '../../application/use_cases/restart_receipt_extraction.dart';
 import '../../domain/exceptions/app_exceptions.dart';
@@ -17,13 +19,17 @@ import '../http/multipart_request_parser.dart';
 class ReceiptHandler {
   ReceiptHandler({
     required this.createReceiptUseCase,
+    required this.deleteReceiptUseCase,
     required this.getReceiptUseCase,
+    required this.getReceiptImageUseCase,
     required this.listReceiptsUseCase,
     required this.restartReceiptExtractionUseCase,
   });
 
   final CreateReceiptUseCase createReceiptUseCase;
+  final DeleteReceiptUseCase deleteReceiptUseCase;
   final GetReceiptUseCase getReceiptUseCase;
+  final GetReceiptImageUseCase getReceiptImageUseCase;
   final ListReceiptsUseCase listReceiptsUseCase;
   final RestartReceiptExtractionUseCase restartReceiptExtractionUseCase;
   final HttpErrorMapper _errorMapper = HttpErrorMapper();
@@ -68,6 +74,27 @@ class ReceiptHandler {
       return Response.ok(
         jsonEncode(responseDto.toJson()),
         headers: {'content-type': 'application/json'},
+      );
+    } on AppException catch (error) {
+      return _errorMapper.map(error);
+    } catch (_) {
+      return _errorMapper.internalError();
+    }
+  }
+
+  Future<Response> getImage(Request request) async {
+    try {
+      final receiptId = request.params['receiptId'];
+      if (receiptId == null || receiptId.isEmpty) {
+        throw ValidationException('Missing receipt id.');
+      }
+
+      final receiptImage = await getReceiptImageUseCase.execute(
+        ReceiptId(receiptId),
+      );
+      return Response.ok(
+        Stream.value(receiptImage.bytes),
+        headers: {'content-type': receiptImage.mimeType},
       );
     } on AppException catch (error) {
       return _errorMapper.map(error);
@@ -127,6 +154,22 @@ class ReceiptHandler {
         body: jsonEncode(responseDto.toJson()),
         headers: {'content-type': 'application/json'},
       );
+    } on AppException catch (error) {
+      return _errorMapper.map(error);
+    } catch (_) {
+      return _errorMapper.internalError();
+    }
+  }
+
+  Future<Response> delete(Request request) async {
+    try {
+      final receiptId = request.params['receiptId'];
+      if (receiptId == null || receiptId.isEmpty) {
+        throw ValidationException('Missing receipt id.');
+      }
+
+      await deleteReceiptUseCase.execute(ReceiptId(receiptId));
+      return Response(HttpStatus.noContent);
     } on AppException catch (error) {
       return _errorMapper.map(error);
     } catch (_) {

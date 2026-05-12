@@ -123,6 +123,29 @@ void main() {
     expect(response.last.id.value, 'rcp_12345678901234');
   });
 
+  test('backend client parses receipt image responses', () async {
+    final client = BackendClient(
+      config: BackendClientConfig(baseUri: Uri.parse('http://localhost:8080')),
+      httpClient: _FakeBackendHttpClient(),
+    );
+
+    final response = await client.getReceiptImage(
+      ReceiptId('rcp_12345678901234'),
+    );
+
+    expect(response.mimeType, 'image/png');
+    expect(response.bytes, [1, 2, 3, 4]);
+  });
+
+  test('backend client accepts delete receipt responses', () async {
+    final client = BackendClient(
+      config: BackendClientConfig(baseUri: Uri.parse('http://localhost:8080')),
+      httpClient: _FakeBackendHttpClient(),
+    );
+
+    await client.deleteReceipt(ReceiptId('rcp_12345678901234'));
+  });
+
   test('backend client parses restart extraction responses', () async {
     final client = BackendClient(
       config: BackendClientConfig(baseUri: Uri.parse('http://localhost:8080')),
@@ -180,6 +203,19 @@ class _FakeHttpClient extends http.BaseClient {
 class _FakeBackendHttpClient extends http.BaseClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    if (request.method == 'DELETE' &&
+        request.url.path.endsWith('/v1/receipts/rcp_12345678901234')) {
+      return http.StreamedResponse(Stream<List<int>>.empty(), 204);
+    }
+
+    if (request.method == 'GET' && request.url.path.endsWith('/image')) {
+      return http.StreamedResponse(
+        Stream.value([1, 2, 3, 4]),
+        200,
+        headers: {'content-type': 'image/png'},
+      );
+    }
+
     final isRestart = request.method == 'POST' &&
         request.url.path.endsWith('/extractions');
     final isCreate = request.method == 'POST' && !isRestart;

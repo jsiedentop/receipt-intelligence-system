@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'package:ris_core/ris_core.dart';
 
+import '../../domain/exceptions/app_exceptions.dart';
 import '../../domain/models/receipt.dart';
 import '../../domain/repositories/receipt_repository.dart';
 import '../../domain/services/extract_service.dart';
@@ -21,7 +22,12 @@ class ProcessReceiptExtractionUseCase {
   final String _dataDirectoryPath;
 
   Future<void> execute(ReceiptId receiptId) async {
-    final receipt = await _receiptRepository.getById(receiptId);
+    Receipt receipt;
+    try {
+      receipt = await _receiptRepository.getById(receiptId);
+    } on ReceiptNotFoundException {
+      return;
+    }
     final requestId = receipt.extractRequestId;
 
     if (receipt.status == ReceiptStatus.processed && receipt.extraction != null) {
@@ -47,6 +53,8 @@ class ProcessReceiptExtractionUseCase {
         requestId: requestId,
         extraction: extraction,
       );
+    } on ReceiptNotFoundException {
+      return;
     } catch (_) {
       await _receiptRepository.clearExtraction(
         receiptId: receiptId,

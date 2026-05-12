@@ -86,6 +86,32 @@ Not found response:
 Current response shape:
 - same object structure as `POST /v1/receipts`
 
+### `GET /v1/receipts/{receiptId}/image`
+
+Purpose:
+- retrieve the original uploaded receipt image as binary content
+
+Success response:
+- `200 OK`
+- response body contains the original image bytes
+- `Content-Type` matches the stored image MIME type such as `image/png` or `image/jpeg`
+
+Not found response:
+- `404 Not Found`
+
+### `DELETE /v1/receipts/{receiptId}`
+
+Purpose:
+- delete one stored receipt
+- delete the stored original image
+- delete any persisted extraction payload for that receipt
+
+Success response:
+- `204 No Content`
+
+Not found response:
+- `404 Not Found`
+
 ### `GET /v1/receipts`
 
 Purpose:
@@ -226,6 +252,7 @@ Current error categories:
   - extraction restart requested while another extraction is active
 - `404 Not Found`
   - missing receipt
+  - missing original image for a known receipt
 - `415 Unsupported Media Type`
   - unsupported upload MIME type
 - `500 Internal Server Error`
@@ -257,10 +284,14 @@ The backend currently follows these rules:
 - clients poll `GET /v1/receipts/{receiptId}` to observe `status`
 - `GET /v1/receipts` returns receipts ordered by newest first
 - `GET /v1/receipts` supports page-based pagination through `page` and `pageSize`
+- `GET /v1/receipts/{receiptId}/image` returns the stored original image bytes
+- `DELETE /v1/receipts/{receiptId}` is allowed even while extraction is `pending` or `processing`
+- deleting a receipt removes it from listing and detail endpoints immediately
 - the backend processes extraction jobs asynchronously in the background
 - when a new extraction is started for an existing receipt, any previous extraction payload is deleted immediately
 - `extraction` remains `null` until the current extraction finishes successfully
 - the backend retries receipts in status `pending` or `processing` after restart
+- background extraction jobs ignore receipts that were deleted before processing finished
 - the backend expects the extraction response `requestId` to exactly match the generated request id
 - API handlers map application exceptions to HTTP status codes
 - business logic is implemented in use cases rather than directly in HTTP handlers
@@ -274,7 +305,9 @@ Implemented now:
 - `POST /v1/receipts`
 - `GET /v1/receipts`
 - `GET /v1/receipts/{receiptId}`
+- `GET /v1/receipts/{receiptId}/image`
 - `POST /v1/receipts/{receiptId}/extractions`
+- `DELETE /v1/receipts/{receiptId}`
 - image persistence
 - OCR persistence
 - typed exception handling
