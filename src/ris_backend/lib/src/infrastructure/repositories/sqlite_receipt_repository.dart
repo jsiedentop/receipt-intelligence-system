@@ -223,6 +223,59 @@ class SqliteReceiptRepository implements ReceiptRepository {
     }
   }
 
+  @override
+  Future<List<Receipt>> list({required int limit, required int offset}) async {
+    try {
+      final rows = _database.select(
+        '''
+        SELECT
+          receipts.id,
+          receipts.created_at,
+          receipts.status,
+          receipts.extract_request_id,
+          receipt_images.original_file_name,
+          receipt_images.mime_type,
+          receipt_images.storage_path,
+          receipt_images.sha256,
+          receipt_images.size_bytes
+        FROM receipts
+        INNER JOIN receipt_images ON receipt_images.receipt_id = receipts.id
+        ORDER BY receipts.created_at DESC, receipts.id DESC
+        LIMIT ? OFFSET ?;
+        ''',
+        [limit, offset],
+      );
+
+      return rows
+          .map(
+            (row) {
+              final receiptId = ReceiptId(row['id'] as String);
+              return Receipt(
+                id: receiptId,
+                createdAt: DateTime.parse(row['created_at'] as String),
+                status: ReceiptStatus.values.byName(row['status'] as String),
+                image: StoredReceiptImage(
+                  originalFileName: row['original_file_name'] as String,
+                  mimeType: row['mime_type'] as String,
+                  storagePath: row['storage_path'] as String,
+                  sha256: row['sha256'] as String,
+                  sizeBytes: row['size_bytes'] as int,
+                ),
+                extractRequestId: ExtractRequestId(
+                  row['extract_request_id'] as String,
+                ),
+                extraction: _selectExtraction(receiptId),
+              );
+            },
+          )
+          .toList(growable: false);
+    } on AppException {
+      rethrow;
+    } catch (error) {
+      throw PersistenceException('Failed to load receipts.', cause: error);
+    }
+  }
+
   sqlite.Row _selectReceiptRow(ReceiptId receiptId) {
     final rows = _database.select(
       '''

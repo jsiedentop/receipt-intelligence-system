@@ -30,4 +30,6 @@ abstract interface class ReceiptRepository {
   });
 
   Future<List<Receipt>> listByStatuses(List<ReceiptStatus> statuses);
+
+  Future<List<Receipt>> list({required int limit, required int offset});
 }

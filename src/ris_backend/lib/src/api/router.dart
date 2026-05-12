@@ -9,6 +9,7 @@ import 'handlers/receipt_handler.dart';
 Handler buildRouter({required ReceiptHandler receiptHandler}) {
   final router = Router()
     ..get('/healthz', _healthHandler)
+    ..get('/v1/receipts', receiptHandler.list)
     ..post('/v1/receipts', receiptHandler.create)
     ..get('/v1/receipts/<receiptId>', receiptHandler.getById)
     ..post('/v1/receipts/<receiptId>/extractions', receiptHandler.restartExtraction);

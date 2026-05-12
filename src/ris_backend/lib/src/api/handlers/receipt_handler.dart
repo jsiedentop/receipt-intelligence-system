@@ -8,6 +8,7 @@ import 'package:shelf_router/shelf_router.dart';
 import '../mappers/receipt_response_mapper.dart';
 import '../../application/use_cases/create_receipt.dart';
 import '../../application/use_cases/get_receipt.dart';
+import '../../application/use_cases/list_receipts.dart';
 import '../../application/use_cases/restart_receipt_extraction.dart';
 import '../../domain/exceptions/app_exceptions.dart';
 import '../errors/http_error_mapper.dart';
@@ -17,11 +18,13 @@ class ReceiptHandler {
   ReceiptHandler({
     required this.createReceiptUseCase,
     required this.getReceiptUseCase,
+    required this.listReceiptsUseCase,
     required this.restartReceiptExtractionUseCase,
   });
 
   final CreateReceiptUseCase createReceiptUseCase;
   final GetReceiptUseCase getReceiptUseCase;
+  final ListReceiptsUseCase listReceiptsUseCase;
   final RestartReceiptExtractionUseCase restartReceiptExtractionUseCase;
   final HttpErrorMapper _errorMapper = HttpErrorMapper();
   final ReceiptResponseMapper _receiptResponseMapper = const ReceiptResponseMapper();
@@ -73,6 +76,41 @@ class ReceiptHandler {
     }
   }
 
+  Future<Response> list(Request request) async {
+    try {
+      final page = _parsePositiveInt(
+        request.url.queryParameters['page'],
+        fieldName: 'page',
+        fallback: 1,
+      );
+      final pageSize = _parsePositiveInt(
+        request.url.queryParameters['pageSize'],
+        fieldName: 'pageSize',
+        fallback: 20,
+      );
+      if (pageSize > 100) {
+        throw ValidationException('Query parameter "pageSize" must be at most 100.');
+      }
+
+      final receipts = await listReceiptsUseCase.execute(
+        page: page,
+        pageSize: pageSize,
+      );
+      final responseDtos = receipts
+          .map(_receiptResponseMapper.toDto)
+          .map((receipt) => receipt.toJson())
+          .toList(growable: false);
+      return Response.ok(
+        jsonEncode(responseDtos),
+        headers: {'content-type': 'application/json'},
+      );
+    } on AppException catch (error) {
+      return _errorMapper.map(error);
+    } catch (_) {
+      return _errorMapper.internalError();
+    }
+  }
+
   Future<Response> restartExtraction(Request request) async {
     try {
       final receiptId = request.params['receiptId'];
@@ -94,5 +132,23 @@ class ReceiptHandler {
     } catch (_) {
       return _errorMapper.internalError();
     }
+  }
+
+  int _parsePositiveInt(String? value, {
+    required String fieldName,
+    required int fallback,
+  }) {
+    if (value == null || value.isEmpty) {
+      return fallback;
+    }
+
+    final parsed = int.tryParse(value);
+    if (parsed == null || parsed < 1) {
+      throw ValidationException(
+        'Query parameter "$fieldName" must be a positive integer.',
+      );
+    }
+
+    return parsed;
   }
 }

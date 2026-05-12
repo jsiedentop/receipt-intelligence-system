@@ -86,6 +86,84 @@ Not found response:
 Current response shape:
 - same object structure as `POST /v1/receipts`
 
+### `GET /v1/receipts`
+
+Purpose:
+- list persisted receipts for overview screens
+- support paginated polling over stored receipts
+
+Query parameters:
+- `page`: optional positive integer, default `1`
+- `pageSize`: optional positive integer, default `20`, maximum `100`
+
+Success response:
+- `200 OK`
+
+Current response shape:
+- JSON array of receipt objects
+- each item has the same object structure as `POST /v1/receipts`
+- ordered by `createdAt` descending, with newest receipts first
+
+Example response:
+
+```json
+[
+  {
+    "id": "rcp_1747061885123999_a1b2c3d5",
+    "createdAt": "2026-05-12T20:18:12.345678Z",
+    "status": "processing",
+    "extractRequestId": "ext_1a789ec91879",
+    "image": {
+      "originalFileName": "receipt-2.png",
+      "mimeType": "image/png",
+      "storagePath": "receipts/rcp_1747061885123999_a1b2c3d5/original.png",
+      "sha256": "9ffb6f5baf5b9f2c2d90d3a8b3f2cc5c8dff5cf759c992f6579e0f9b3ce8d8bc",
+      "sizeBytes": 123789
+    },
+    "extraction": null
+  },
+  {
+    "id": "rcp_1747061885123456_a1b2c3d4",
+    "createdAt": "2026-05-12T20:17:12.345678Z",
+    "status": "processed",
+    "extractRequestId": "ext_1a789ec91878",
+    "image": {
+      "originalFileName": "receipt-1.png",
+      "mimeType": "image/png",
+      "storagePath": "receipts/rcp_1747061885123456_a1b2c3d4/original.png",
+      "sha256": "8ffb6f5baf5b9f2c2d90d3a8b3f2cc5c8dff5cf759c992f6579e0f9b3ce8d8bb",
+      "sizeBytes": 123456
+    },
+    "extraction": {
+      "requestId": "ext_1a789ec91878",
+      "rawText": "LDL\nJulius-Loßmann-Straße 11\n90469 Nürnberg\nEUR",
+      "ocr": {
+        "rawText": "LDL\nJulius-Loßmann-Straße 11\n90469 Nürnberg\nEUR",
+        "blocks": [],
+        "lines": []
+      },
+      "metadata": {
+        "extractor": "ris_extract_donut",
+        "version": "0.2.0",
+        "models": {
+          "ocr": {
+            "name": "PaddleOCR",
+            "textDetectionModel": "PP-OCRv5_mobile_det",
+            "textRecognitionModel": "latin_PP-OCRv5_mobile_rec",
+            "status": "ok"
+          }
+        },
+        "runtime": {
+          "python": "3.11.15",
+          "platform": "Linux-6.10.14-linuxkit-aarch64-with-glibc2.41"
+        }
+      },
+      "warnings": []
+    }
+  }
+]
+```
+
 ### `POST /v1/receipts/{receiptId}/extractions`
 
 Purpose:
@@ -143,6 +221,7 @@ Current error categories:
   - malformed multipart request
   - missing upload field
   - invalid request parameters
+  - invalid pagination parameters
 - `409 Conflict`
   - extraction restart requested while another extraction is active
 - `404 Not Found`
@@ -176,6 +255,8 @@ The backend currently follows these rules:
 - the backend generates an extraction `requestId` before calling `ris_extract`
 - `POST /v1/receipts` returns immediately after the receipt is stored and queued for extraction
 - clients poll `GET /v1/receipts/{receiptId}` to observe `status`
+- `GET /v1/receipts` returns receipts ordered by newest first
+- `GET /v1/receipts` supports page-based pagination through `page` and `pageSize`
 - the backend processes extraction jobs asynchronously in the background
 - when a new extraction is started for an existing receipt, any previous extraction payload is deleted immediately
 - `extraction` remains `null` until the current extraction finishes successfully
@@ -191,6 +272,7 @@ The current backend implementation intentionally focuses on the first vertical s
 Implemented now:
 - `GET /healthz`
 - `POST /v1/receipts`
+- `GET /v1/receipts`
 - `GET /v1/receipts/{receiptId}`
 - `POST /v1/receipts/{receiptId}/extractions`
 - image persistence
@@ -198,7 +280,6 @@ Implemented now:
 - typed exception handling
 
 Not implemented yet:
-- `GET /v1/receipts`
 - `PATCH /v1/receipts/{receiptId}/items/{itemId}`
 - structured line-item persistence
 - manual category correction

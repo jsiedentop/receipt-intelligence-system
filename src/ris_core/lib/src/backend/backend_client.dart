@@ -96,6 +96,30 @@ class BackendClient {
     return _parseReceiptResponse(response.body);
   }
 
+  Future<List<ReceiptResponseDto>> listReceipts({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final queryParameters = <String, String>{
+      'page': '$page',
+      'pageSize': '$pageSize',
+    };
+    final response = await _sendGetUri(
+      config.baseUri.resolve('/v1/receipts').replace(
+        queryParameters: queryParameters,
+      ),
+    );
+    if (response.statusCode != 200) {
+      throw BackendClientHttpException(
+        statusCode: response.statusCode,
+        responseBody: response.body,
+        message: 'Backend service returned an unsuccessful list response.',
+      );
+    }
+
+    return _parseReceiptListResponse(response.body);
+  }
+
   void close() {
     if (_ownsHttpClient) {
       _httpClient.close();
@@ -103,10 +127,12 @@ class BackendClient {
   }
 
   Future<http.Response> _sendGet(String path) async {
+    return _sendGetUri(config.baseUri.resolve(path));
+  }
+
+  Future<http.Response> _sendGetUri(Uri uri) async {
     try {
-      return await _httpClient
-          .get(config.baseUri.resolve(path))
-          .timeout(config.timeout);
+      return await _httpClient.get(uri).timeout(config.timeout);
     } on TimeoutException catch (error) {
       throw BackendClientTransportException(
         'Backend service request timed out.',
@@ -161,6 +187,28 @@ class BackendClient {
     try {
       final json = _asJsonMap(jsonDecode(source), 'backend receipt response');
       return ReceiptResponseDto.fromJson(json);
+    } on FormatException catch (error) {
+      throw BackendClientInvalidResponseException(
+        'Backend service returned an invalid JSON payload.',
+        cause: error,
+      );
+    }
+  }
+
+  List<ReceiptResponseDto> _parseReceiptListResponse(String source) {
+    try {
+      final decoded = jsonDecode(source);
+      if (decoded is! List) {
+        throw const FormatException('Expected backend receipt list response to be a JSON array.');
+      }
+
+      return decoded
+          .map(
+            (item) => ReceiptResponseDto.fromJson(
+              _asJsonMap(item, 'backend receipt list item'),
+            ),
+          )
+          .toList(growable: false);
     } on FormatException catch (error) {
       throw BackendClientInvalidResponseException(
         'Backend service returned an invalid JSON payload.',

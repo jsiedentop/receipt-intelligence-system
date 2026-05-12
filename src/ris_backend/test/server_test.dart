@@ -147,6 +147,66 @@ void main() {
     expect(restartResponse.statusCode, 409);
   });
 
+  test('lists receipts with page and pageSize pagination', () async {
+    await _uploadFile(
+      backendBaseUri.resolve('/v1/receipts'),
+      '../../data/receipt-1.png',
+      contentType: MediaType('image', 'png'),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    await _uploadFile(
+      backendBaseUri.resolve('/v1/receipts'),
+      '../../data/receipt-2.png',
+      contentType: MediaType('image', 'png'),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    await _uploadFile(
+      backendBaseUri.resolve('/v1/receipts'),
+      '../../data/receipt-1.png',
+      contentType: MediaType('image', 'png'),
+    );
+
+    final pageOneResponse = await http.get(
+      backendBaseUri.resolve('/v1/receipts?page=1&pageSize=2'),
+    );
+    final pageOneBody = jsonDecode(pageOneResponse.body) as List<dynamic>;
+    final pageTwoResponse = await http.get(
+      backendBaseUri.resolve('/v1/receipts?page=2&pageSize=2'),
+    );
+    final pageTwoBody = jsonDecode(pageTwoResponse.body) as List<dynamic>;
+    final pageThreeResponse = await http.get(
+      backendBaseUri.resolve('/v1/receipts?page=3&pageSize=2'),
+    );
+    final pageThreeBody = jsonDecode(pageThreeResponse.body) as List<dynamic>;
+
+    expect(pageOneResponse.statusCode, 200);
+    expect(pageOneBody, hasLength(2));
+    expect(pageTwoResponse.statusCode, 200);
+    expect(pageTwoBody, hasLength(1));
+    expect(pageThreeResponse.statusCode, 200);
+    expect(pageThreeBody, isEmpty);
+
+    final firstCreatedAt = DateTime.parse(
+      (pageOneBody[0] as Map<String, dynamic>)['createdAt'] as String,
+    );
+    final secondCreatedAt = DateTime.parse(
+      (pageOneBody[1] as Map<String, dynamic>)['createdAt'] as String,
+    );
+    expect(firstCreatedAt.isAfter(secondCreatedAt), isTrue);
+  });
+
+  test('returns 400 for invalid receipt list pagination parameters', () async {
+    final zeroPageResponse = await http.get(
+      backendBaseUri.resolve('/v1/receipts?page=0&pageSize=20'),
+    );
+    final oversizedPageResponse = await http.get(
+      backendBaseUri.resolve('/v1/receipts?page=1&pageSize=101'),
+    );
+
+    expect(zeroPageResponse.statusCode, 400);
+    expect(oversizedPageResponse.statusCode, 400);
+  });
+
   test('returns 415 for unsupported file types', () async {
     final invalidFile = File(path.join(tempDirectory.path, 'invalid.txt'));
     await invalidFile.writeAsString('not an image');

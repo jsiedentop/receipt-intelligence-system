@@ -7,6 +7,7 @@ import 'api/handlers/receipt_handler.dart';
 import 'api/router.dart';
 import 'application/use_cases/create_receipt.dart';
 import 'application/use_cases/get_receipt.dart';
+import 'application/use_cases/list_receipts.dart';
 import 'application/use_cases/process_receipt_extraction.dart';
 import 'application/use_cases/restart_receipt_extraction.dart';
 import 'infrastructure/config/backend_config.dart';
@@ -47,6 +48,9 @@ Future<Handler> buildHandler(BackendConfig config) async {
   final getReceiptUseCase = GetReceiptUseCase(
     receiptRepository: receiptRepository,
   );
+  final listReceiptsUseCase = ListReceiptsUseCase(
+    receiptRepository: receiptRepository,
+  );
   final restartReceiptExtractionUseCase = RestartReceiptExtractionUseCase(
     receiptRepository: receiptRepository,
     extractionJobDispatcher: extractionJobCoordinator,
@@ -54,6 +58,7 @@ Future<Handler> buildHandler(BackendConfig config) async {
   final receiptHandler = ReceiptHandler(
     createReceiptUseCase: createReceiptUseCase,
     getReceiptUseCase: getReceiptUseCase,
+    listReceiptsUseCase: listReceiptsUseCase,
     restartReceiptExtractionUseCase: restartReceiptExtractionUseCase,
   );
 
