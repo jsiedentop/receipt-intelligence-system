@@ -1,0 +1,5 @@
+paddlepaddle==3.2.1
+paddleocr==3.5.0
+fastapi==0.116.1
+uvicorn==0.35.0
+python-multipart==0.0.20
