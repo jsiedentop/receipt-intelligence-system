@@ -34,19 +34,19 @@ python ris_extract.py ../../data/receipt-1.png --request-id ext_demo12345678 --o
 Start it like this:
 
 ```bash
-uvicorn api:app --host 0.0.0.0 --port 8080
+uvicorn api:app --host 0.0.0.0 --port 8081
 ```
 
 Health check:
 
 ```bash
-curl http://localhost:8080/healthz
+curl http://localhost:8081/healthz
 ```
 
 OCR request:
 
 ```bash
-curl -X POST http://localhost:8080/v1/extractions \
+curl -X POST http://localhost:8081/v1/extractions \
   -F "requestId=ext_demo12345678" \
   -F "file=@../../data/receipt-1.png"
 ```
@@ -62,5 +62,5 @@ docker build -t ris_extract .
 Run:
 
 ```bash
-docker run --rm -p 8080:8080 -v ./.model-cache:/root/.paddlex ris_extract
+docker run --rm -p 8081:8081 -v ./.model-cache:/root/.paddlex ris_extract
 ```

@@ -20,12 +20,17 @@ Response _healthHandler(Request request) {
 Future<Response> _extractHandler(Request request) async {
   try {
     final upload = await _readUpload(request);
-    final delayMs = int.tryParse(Platform.environment['RIS_EXTRACT_MOCK_DELAY_MS'] ?? '0') ?? 0;
+    final delayMs =
+        int.tryParse(
+          Platform.environment['RIS_EXTRACT_MOCK_DELAY_MS'] ?? '0',
+        ) ??
+        0;
     if (delayMs > 0) {
       await Future<void>.delayed(Duration(milliseconds: delayMs));
     }
     final fixtureFile = await _resolveFixtureFile(upload.fileName);
-    final fixtureJson = jsonDecode(await fixtureFile.readAsString()) as Map<String, dynamic>;
+    final fixtureJson =
+        jsonDecode(await fixtureFile.readAsString()) as Map<String, dynamic>;
     fixtureJson['requestId'] = upload.requestId.value;
     return Response.ok(
       jsonEncode(fixtureJson),
@@ -91,13 +96,12 @@ Future<_UploadedFile> _readUpload(Request request) async {
 
   final requestId = ExtractRequestId(requestIdValue);
   if (!requestId.isValid) {
-    throw BadRequestException('Upload field "requestId" must start with "ext_".');
+    throw BadRequestException(
+      'Upload field "requestId" must start with "ext_".',
+    );
   }
 
-  return _UploadedFile(
-    fileName: path.basename(fileName),
-    requestId: requestId,
-  );
+  return _UploadedFile(fileName: path.basename(fileName), requestId: requestId);
 }
 
 Future<File> _resolveFixtureFile(String fileName) async {
@@ -135,7 +139,7 @@ void main(List<String> args) async {
   final handler = Pipeline()
       .addMiddleware(logRequests())
       .addHandler(_router.call);
-  final port = int.parse(Platform.environment['PORT'] ?? '8080');
+  final port = int.parse(Platform.environment['PORT'] ?? '8081');
   final server = await serve(handler, ip, port);
   print('Server listening on port ${server.port}');
 }

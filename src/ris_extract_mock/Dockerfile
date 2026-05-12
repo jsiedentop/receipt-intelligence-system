@@ -17,5 +17,5 @@ COPY --from=build /runtime/ /
 COPY --from=build /app/output/bundle/ /app/
 
 # Start server.
-EXPOSE 8080
+EXPOSE 8081
 CMD ["/app/bin/server"]
