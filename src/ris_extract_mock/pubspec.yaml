@@ -1,12 +1,17 @@
 name: ris_extract_mock
 description: A server app using the shelf package and Docker.
 version: 1.0.0
+publish_to: none
 # repository: https://github.com/my_org/my_repo
 
 environment:
   sdk: ^3.11.5
 
 dependencies:
+  http_parser: ^4.1.2
+  path: ^1.9.1
+  ris_core:
+    path: ../ris_core
   shelf: ^1.4.2
   shelf_router: ^1.1.2
 

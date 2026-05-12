@@ -1,14 +1,22 @@
 name: ris_backend
 description: A server app using the shelf package and Docker.
 version: 1.0.0
+publish_to: none
 # repository: https://github.com/my_org/my_repo
 
 environment:
   sdk: ^3.11.4
 
 dependencies:
+  crypto: ^3.0.6
+  http_parser: ^4.1.2
+  mime: ^2.0.0
+  path: ^1.9.1
+  ris_core:
+    path: ../ris_core
   shelf: ^1.4.2
   shelf_router: ^1.1.2
+  sqlite3: ^2.9.3
 
 dev_dependencies:
   http: ^1.2.2

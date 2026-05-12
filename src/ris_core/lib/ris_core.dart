@@ -1,8 +1,8 @@
-/// Support for doing something awesome.
-///
-/// More dartdocs go here.
 library;
 
-export 'src/ris_core_base.dart';
-
-// TODO: Export any libraries intended for clients of this package.
+export 'src/backend/backend_client.dart';
+export 'src/backend/models/receipt_response_dto.dart';
+export 'src/extract/extract_client.dart';
+export 'src/extract/extract_models.dart';
+export 'src/ids/extract_request_id.dart';
+export 'src/ids/receipt_id.dart';

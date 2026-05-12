@@ -4,7 +4,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 
 from ris_extract import SUPPORTED_SUFFIXES, extract_receipt
 
@@ -12,13 +12,19 @@ from ris_extract import SUPPORTED_SUFFIXES, extract_receipt
 app = FastAPI(title="ris_extract_donut", version="0.2.0")
 
 
-@app.get("/health")
+@app.get("/healthz")
 def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/extract")
-def extract(file: UploadFile = File(...)) -> dict:
+@app.post("/v1/extractions")
+def extract(requestId: str = Form(...), file: UploadFile = File(...)) -> dict:
+    if not requestId or not requestId.startswith("ext_"):
+        raise HTTPException(
+            status_code=400,
+            detail='requestId must be non-empty and start with "ext_"',
+        )
+
     suffix = Path(file.filename or "upload").suffix.lower()
     if suffix not in SUPPORTED_SUFFIXES:
         supported = ", ".join(sorted(SUPPORTED_SUFFIXES))
@@ -35,7 +41,7 @@ def extract(file: UploadFile = File(...)) -> dict:
             file.file.close()
 
     try:
-        return extract_receipt(temp_path)
+        return extract_receipt(temp_path, request_id=requestId)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     finally:

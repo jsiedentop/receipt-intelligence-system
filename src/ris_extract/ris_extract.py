@@ -9,7 +9,6 @@ import json
 import mimetypes
 import platform
 import sys
-import uuid
 from pathlib import Path
 from typing import Any
 
@@ -28,14 +27,20 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         help="Optional path for the JSON output file",
     )
+    parser.add_argument(
+        "--request-id",
+        type=str,
+        help="Optional extract request id. If omitted, a generated id is used.",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
+    request_id = args.request_id or _create_extract_request_id()
 
     try:
-        result = extract_receipt(args.receipt_path)
+        result = extract_receipt(args.receipt_path, request_id=request_id)
     except Exception as exc:  # pragma: no cover - CLI boundary
         print(f"error: {exc}", file=sys.stderr)
         return 1
@@ -50,8 +55,9 @@ def main() -> int:
     return 0
 
 
-def extract_receipt(receipt_path: Path) -> dict[str, Any]:
+def extract_receipt(receipt_path: Path, request_id: str) -> dict[str, Any]:
     _validate_receipt_path(receipt_path)
+    _validate_request_id(request_id)
 
     ocr_result = _run_paddle_ocr(receipt_path)
     blocks = ocr_result["blocks"]
@@ -62,7 +68,7 @@ def extract_receipt(receipt_path: Path) -> dict[str, Any]:
     raw_text = "\n".join(line["text"] for line in lines)
 
     return {
-        "requestId": f"ext_{uuid.uuid4().hex[:12]}",
+        "requestId": request_id,
         "source": {
             "fileName": receipt_path.name,
             "filePath": str(receipt_path.resolve()),
@@ -95,6 +101,17 @@ def _validate_receipt_path(receipt_path: Path) -> None:
     if receipt_path.suffix.lower() not in SUPPORTED_SUFFIXES:
         supported = ", ".join(sorted(SUPPORTED_SUFFIXES))
         raise ValueError(f"Unsupported file type: {receipt_path.suffix}. Expected one of: {supported}")
+
+
+def _validate_request_id(request_id: str) -> None:
+    if not request_id or not request_id.startswith("ext_"):
+        raise ValueError('request_id must be non-empty and start with "ext_"')
+
+
+def _create_extract_request_id() -> str:
+    import uuid
+
+    return f"ext_{uuid.uuid4().hex[:14]}"
 
 
 def _run_paddle_ocr(receipt_path: Path) -> dict[str, Any]:

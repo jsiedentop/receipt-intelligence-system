@@ -1,0 +1,26 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "ris_backend",
+            "cwd": "src/ris_backend",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "ris_extract_mock",
+            "cwd": "src/ris_extract_mock",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "ris_ui",
+            "cwd": "src/ris_ui",
+            "request": "launch",
+            "type": "dart"
+        }
+    ]
+}
