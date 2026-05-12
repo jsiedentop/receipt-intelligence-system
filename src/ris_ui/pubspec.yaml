@@ -1,7 +1,7 @@
 name: ris_ui
 description: "A new Flutter project."
 publish_to: 'none'
-version: 0.1.0+1
+version: 1.1.0+1
 
 environment:
   sdk: ^3.11.5
@@ -9,6 +9,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  file_picker: ^10.1.9
+  intl: ^0.20.2
+  provider: ^6.1.5
+  ris_core:
+    path: ../ris_core
 
 dev_dependencies:
   flutter_test:
