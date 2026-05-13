@@ -32,6 +32,12 @@ class ReceiptDetailController extends ChangeNotifier {
   bool _isDeleting = false;
   bool get isDeleting => _isDeleting;
 
+  bool _isSavingMerchant = false;
+  bool get isSavingMerchant => _isSavingMerchant;
+
+  final Set<String> _updatingItemIds = <String>{};
+  bool isUpdatingItem(String itemId) => _updatingItemIds.contains(itemId);
+
   OcrOverlayMode _ocrOverlayMode = OcrOverlayMode.none;
   OcrOverlayMode get ocrOverlayMode => _ocrOverlayMode;
 
@@ -40,9 +46,11 @@ class ReceiptDetailController extends ChangeNotifier {
 
   Timer? _pollTimer;
 
-  bool get hasLineOverlays => _receipt?.extraction?.ocr.lines.isNotEmpty ?? false;
+  bool get hasLineOverlays =>
+      _receipt?.extraction?.ocr.lines.isNotEmpty ?? false;
 
-  bool get hasBlockOverlays => _receipt?.extraction?.ocr.blocks.isNotEmpty ?? false;
+  bool get hasBlockOverlays =>
+      _receipt?.extraction?.ocr.blocks.isNotEmpty ?? false;
 
   bool get hasAnyOverlays => hasLineOverlays || hasBlockOverlays;
 
@@ -72,7 +80,10 @@ class ReceiptDetailController extends ChangeNotifier {
       _syncOverlayMode();
       _configurePolling(receipt.status);
     } catch (error) {
-      _errorMessage = _asMessage(error, fallback: 'Failed to load receipt details.');
+      _errorMessage = _asMessage(
+        error,
+        fallback: 'Failed to load receipt details.',
+      );
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -101,7 +112,10 @@ class ReceiptDetailController extends ChangeNotifier {
       _syncOverlayMode();
       _configurePolling(_receipt!.status);
     } catch (error) {
-      _errorMessage = _asMessage(error, fallback: 'Failed to restart extraction.');
+      _errorMessage = _asMessage(
+        error,
+        fallback: 'Failed to restart extraction.',
+      );
     } finally {
       _isRestarting = false;
       notifyListeners();
@@ -121,6 +135,72 @@ class ReceiptDetailController extends ChangeNotifier {
       _isDeleting = false;
       notifyListeners();
       rethrow;
+    }
+  }
+
+  Future<void> createMerchantForReceipt({
+    required String name,
+    required String street,
+    required String postCode,
+    required String city,
+    required String taxId,
+  }) async {
+    _isSavingMerchant = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      _receipt = await _repository.createMerchantForReceipt(
+        receiptId: _receiptId,
+        name: name,
+        street: street,
+        postCode: postCode,
+        city: city,
+        taxId: taxId,
+      );
+    } catch (error) {
+      _errorMessage = _asMessage(
+        error,
+        fallback: 'Failed to create and assign merchant.',
+      );
+      rethrow;
+    } finally {
+      _isSavingMerchant = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> updateReceiptItem({
+    required ReceiptItemDto item,
+    required String? itemNumber,
+    required String? name,
+    required double? totalPrice,
+    required int? quantity,
+    required ReceiptItemCategory? category,
+  }) async {
+    _updatingItemIds.add(item.id);
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      _receipt = await _repository.updateReceiptItem(
+        receiptId: _receiptId,
+        itemId: item.id,
+        itemNumber: itemNumber,
+        name: name,
+        totalPrice: totalPrice,
+        quantity: quantity,
+        category: category,
+      );
+    } catch (error) {
+      _errorMessage = _asMessage(
+        error,
+        fallback: 'Failed to update receipt item.',
+      );
+      rethrow;
+    } finally {
+      _updatingItemIds.remove(item.id);
+      notifyListeners();
     }
   }
 

@@ -15,9 +15,9 @@ class ReceiptsListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<ReceiptsListController>(
-      create: (context) => ReceiptsListController(
-        context.read<ReceiptsListRepository>(),
-      )..loadInitial(),
+      create: (context) =>
+          ReceiptsListController(context.read<ReceiptsListRepository>())
+            ..loadInitial(),
       child: const _ReceiptsListView(),
     );
   }
@@ -32,6 +32,7 @@ class _ReceiptsListView extends StatelessWidget {
       builder: (context, controller, child) {
         return AppShell(
           title: 'Receipts',
+          currentSection: AppSection.receipts,
           actions: [
             IconButton(
               tooltip: 'Refresh',
@@ -60,9 +61,11 @@ class _ReceiptsListView extends StatelessWidget {
             child: controller.receipts.isEmpty
                 ? AppEmptyState(
                     title: 'No receipts yet',
-                    message: 'Upload your first receipt to start managing extraction results.',
+                    message:
+                        'Upload your first receipt to start managing extraction results.',
                     action: FilledButton.icon(
-                      onPressed: () => Navigator.of(context).pushNamed(AppRoutePaths.upload),
+                      onPressed: () =>
+                          Navigator.of(context).pushNamed(AppRoutePaths.upload),
                       icon: const Icon(Icons.upload_file),
                       label: const Text('Upload receipt'),
                     ),
@@ -72,15 +75,16 @@ class _ReceiptsListView extends StatelessWidget {
                       Expanded(
                         child: ListView.separated(
                           itemCount: controller.receipts.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 12),
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: 12),
                           itemBuilder: (context, index) {
                             final receipt = controller.receipts[index];
                             return ReceiptListItem(
                               receipt: receipt,
                               onTap: () async {
-                                await Navigator.of(context).pushNamed(
-                                  '/receipts/${receipt.id.value}',
-                                );
+                                await Navigator.of(
+                                  context,
+                                ).pushNamed('/receipts/${receipt.id.value}');
                                 if (context.mounted) {
                                   await controller.refresh();
                                 }
@@ -92,12 +96,16 @@ class _ReceiptsListView extends StatelessWidget {
                       const SizedBox(height: 16),
                       if (controller.hasMore)
                         FilledButton(
-                          onPressed: controller.isLoadingMore ? null : controller.loadMore,
+                          onPressed: controller.isLoadingMore
+                              ? null
+                              : controller.loadMore,
                           child: controller.isLoadingMore
                               ? const SizedBox(
                                   width: 18,
                                   height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Text('Load more'),
                         ),

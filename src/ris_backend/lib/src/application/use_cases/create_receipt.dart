@@ -56,6 +56,11 @@ class CreateReceiptUseCase {
         status: ReceiptStatus.pending,
         image: image,
         extractRequestId: extractRequestId,
+        merchantId: null,
+        merchant: null,
+        itemsCurrency: null,
+        items: const <ReceiptItem>[],
+        validationWarnings: const <ReceiptValidationWarning>[],
         extraction: null,
       );
 

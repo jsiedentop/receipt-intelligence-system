@@ -14,9 +14,8 @@ class ReceiptUploadScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<ReceiptUploadController>(
-      create: (context) => ReceiptUploadController(
-        context.read<ReceiptUploadRepository>(),
-      ),
+      create: (context) =>
+          ReceiptUploadController(context.read<ReceiptUploadRepository>()),
       child: const _ReceiptUploadView(),
     );
   }
@@ -33,6 +32,7 @@ class _ReceiptUploadView extends StatelessWidget {
 
         return AppShell(
           title: 'Upload receipt',
+          currentSection: AppSection.receipts,
           body: ListView(
             children: [
               Card(
@@ -81,13 +81,17 @@ class _ReceiptUploadView extends StatelessWidget {
                       if (controller.selectedFile != null) ...[
                         const SizedBox(height: 18),
                         Text('Selected file: ${controller.selectedFile!.name}'),
-                        Text('Size: ${controller.selectedFile!.bytes.length} bytes'),
+                        Text(
+                          'Size: ${controller.selectedFile!.bytes.length} bytes',
+                        ),
                       ],
                       if (controller.errorMessage != null) ...[
                         const SizedBox(height: 18),
                         Text(
                           controller.errorMessage!,
-                          style: TextStyle(color: Theme.of(context).colorScheme.error),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
                         ),
                       ],
                     ],
@@ -125,7 +129,9 @@ class _ReceiptUploadView extends StatelessWidget {
                         ],
                         const SizedBox(height: 16),
                         Text('Receipt ID: ${uploadedReceipt.id.value}'),
-                        Text('Request ID: ${uploadedReceipt.extractRequestId.value}'),
+                        Text(
+                          'Request ID: ${uploadedReceipt.extractRequestId.value}',
+                        ),
                         Text('Current status: ${uploadedReceipt.status}'),
                         if (uploadedReceipt.extraction != null) ...[
                           const SizedBox(height: 16),
@@ -134,7 +140,9 @@ class _ReceiptUploadView extends StatelessWidget {
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           const SizedBox(height: 8),
-                          ExtractionSummary(extraction: uploadedReceipt.extraction!),
+                          ExtractionSummary(
+                            extraction: uploadedReceipt.extraction!,
+                          ),
                         ],
                         const SizedBox(height: 20),
                         FilledButton.icon(

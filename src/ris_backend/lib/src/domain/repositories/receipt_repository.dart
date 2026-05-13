@@ -23,6 +23,23 @@ abstract interface class ReceiptRepository {
     required ExtractResponse extraction,
   });
 
+  Future<void> replaceItems({
+    required ReceiptId receiptId,
+    required String? currency,
+    required List<ReceiptItem> items,
+    required List<ReceiptValidationWarning> validationWarnings,
+  });
+
+  Future<ReceiptItem> getItemById({
+    required ReceiptId receiptId,
+    required String itemId,
+  });
+
+  Future<void> updateItem({
+    required ReceiptId receiptId,
+    required ReceiptItem item,
+  });
+
   Future<void> clearExtraction({
     required ReceiptId receiptId,
     required ExtractRequestId requestId,
@@ -32,6 +49,13 @@ abstract interface class ReceiptRepository {
   Future<List<Receipt>> listByStatuses(List<ReceiptStatus> statuses);
 
   Future<List<Receipt>> list({required int limit, required int offset});
+
+  Future<void> assignMerchant({
+    required ReceiptId receiptId,
+    required MerchantId merchantId,
+  });
+
+  Future<bool> hasMerchantAssignment(MerchantId merchantId);
 
   Future<void> delete(ReceiptId receiptId);
 }

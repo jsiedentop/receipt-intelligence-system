@@ -4034,8 +4034,35 @@
         ]
     },
     "structured": {
-        "lineItems": null,
-        "merchantInfo": null,
+        "lineItems": {
+            "total_amount": 19.98,
+            "currency": "EUR",
+            "items": [
+                {
+                    "name": "Sandale",
+                    "total_price": 9.99,
+                    "category": "OTHER",
+                    "item_number": "0508023",
+                    "quantity": 1
+                },
+                {
+                    "name": "LuftbettCamp",
+                    "total_price": 9.99,
+                    "category": "HOUSEHOLD",
+                    "item_number": "0537161",
+                    "quantity": 1
+                }
+            ]
+        },
+        "merchantInfo": {
+            "merchant_name": "Lidl",
+            "city": "Nürnberg",
+            "post_code": "90469",
+            "street": "Julius-Loßmann-Straße 11",
+            "ustid": "DE814429027",
+            "tse_serial_number": "p1lzmRcUQpwvMPLOWqO5M7qcv0XJ8nUratUCPgF6c5c=",
+            "datetime": "2026-04-27T09:14:37"
+        },
         "qrcode_tse_data": null
     },
     "metadata": {

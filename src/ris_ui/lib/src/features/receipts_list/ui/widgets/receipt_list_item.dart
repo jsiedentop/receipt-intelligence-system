@@ -18,7 +18,9 @@ class ReceiptListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final createdAt = DateFormat('yyyy-MM-dd HH:mm').format(receipt.createdAt.toLocal());
+    final createdAt = DateFormat(
+      'yyyy-MM-dd HH:mm',
+    ).format(receipt.createdAt.toLocal());
 
     return Card(
       child: InkWell(

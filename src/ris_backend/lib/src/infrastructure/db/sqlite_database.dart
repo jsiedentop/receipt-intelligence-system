@@ -13,7 +13,9 @@ class SqliteDatabase {
         id TEXT PRIMARY KEY,
         created_at TEXT NOT NULL,
         status TEXT NOT NULL,
-        extract_request_id TEXT NOT NULL
+        extract_request_id TEXT NOT NULL,
+        merchant_id TEXT,
+        items_currency TEXT
       );
     ''');
     database.execute('''
@@ -45,14 +47,71 @@ class SqliteDatabase {
         FOREIGN KEY (receipt_id) REFERENCES receipts(id) ON DELETE CASCADE
       );
     ''');
+    database.execute('''
+      CREATE TABLE IF NOT EXISTS receipt_items (
+        id TEXT PRIMARY KEY,
+        receipt_id TEXT NOT NULL,
+        sort_order INTEGER NOT NULL,
+        item_number TEXT,
+        name TEXT,
+        total_price REAL,
+        quantity INTEGER,
+        category TEXT,
+        FOREIGN KEY (receipt_id) REFERENCES receipts(id) ON DELETE CASCADE
+      );
+    ''');
+    database.execute('''
+      CREATE TABLE IF NOT EXISTS receipt_validation_warnings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        receipt_id TEXT NOT NULL,
+        code TEXT NOT NULL,
+        message TEXT NOT NULL,
+        FOREIGN KEY (receipt_id) REFERENCES receipts(id) ON DELETE CASCADE
+      );
+    ''');
+    database.execute('''
+      CREATE TABLE IF NOT EXISTS merchants (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        street TEXT NOT NULL,
+        post_code TEXT NOT NULL,
+        city TEXT NOT NULL DEFAULT '',
+        tax_id TEXT NOT NULL
+      );
+    ''');
+
+    final receiptColumns = database
+        .select('PRAGMA table_info(receipts);')
+        .map((row) => row['name'] as String)
+        .toSet();
+    if (!receiptColumns.contains('merchant_id')) {
+      database.execute('ALTER TABLE receipts ADD COLUMN merchant_id TEXT;');
+    }
+    if (!receiptColumns.contains('items_currency')) {
+      database.execute('ALTER TABLE receipts ADD COLUMN items_currency TEXT;');
+    }
+
+    final merchantColumns = database
+        .select('PRAGMA table_info(merchants);')
+        .map((row) => row['name'] as String)
+        .toSet();
+    if (!merchantColumns.contains('city')) {
+      database.execute(
+        "ALTER TABLE merchants ADD COLUMN city TEXT NOT NULL DEFAULT '';",
+      );
+    }
 
     final receiptExtractionColumns = database
         .select('PRAGMA table_info(receipt_extractions);')
         .map((row) => row['name'] as String)
         .toSet();
     if (!receiptExtractionColumns.contains('request_id')) {
-      database.execute('ALTER TABLE receipt_extractions ADD COLUMN request_id TEXT;');
-      database.execute('UPDATE receipt_extractions SET request_id = (SELECT extract_request_id FROM receipts WHERE receipts.id = receipt_extractions.receipt_id);');
+      database.execute(
+        'ALTER TABLE receipt_extractions ADD COLUMN request_id TEXT;',
+      );
+      database.execute(
+        'UPDATE receipt_extractions SET request_id = (SELECT extract_request_id FROM receipts WHERE receipts.id = receipt_extractions.receipt_id);',
+      );
     }
     if (!receiptExtractionColumns.contains('structured_json')) {
       database.execute(
@@ -65,8 +124,12 @@ class SqliteDatabase {
         .map((row) => row['name'] as String)
         .toSet();
     if (!receiptWarningColumns.contains('request_id')) {
-      database.execute('ALTER TABLE receipt_warnings ADD COLUMN request_id TEXT;');
-      database.execute('UPDATE receipt_warnings SET request_id = (SELECT extract_request_id FROM receipts WHERE receipts.id = receipt_warnings.receipt_id);');
+      database.execute(
+        'ALTER TABLE receipt_warnings ADD COLUMN request_id TEXT;',
+      );
+      database.execute(
+        'UPDATE receipt_warnings SET request_id = (SELECT extract_request_id FROM receipts WHERE receipts.id = receipt_warnings.receipt_id);',
+      );
     }
 
     return SqliteDatabase._(database);

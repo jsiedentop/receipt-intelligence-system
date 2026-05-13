@@ -18,7 +18,8 @@ class ExtractionSummary extends StatelessWidget {
     final merchantInfo = extraction.structured.merchantInfo;
     final lineItems = extraction.structured.lineItems;
     final tseQr = extraction.structured.qrcodeTseData;
-    final previewItems = lineItems?.items.take(maxItems).toList(growable: false) ??
+    final previewItems =
+        lineItems?.items.take(maxItems).toList(growable: false) ??
         const <ExtractLineItem>[];
 
     return Column(
@@ -76,10 +77,10 @@ class ExtractionSummary extends StatelessWidget {
 }
 
 String _merchantSummary(ExtractMerchantInfo merchantInfo) {
-  final locationParts = [merchantInfo.postCode, merchantInfo.city]
-      .whereType<String>()
-      .where((value) => value.isNotEmpty)
-      .join(' ');
+  final locationParts = [
+    merchantInfo.postCode,
+    merchantInfo.city,
+  ].whereType<String>().where((value) => value.isNotEmpty).join(' ');
   final parts = [merchantInfo.street, locationParts, merchantInfo.dateTime]
       .whereType<String>()
       .where((value) => value.isNotEmpty)
@@ -89,7 +90,8 @@ String _merchantSummary(ExtractMerchantInfo merchantInfo) {
 }
 
 String _lineItemsSummary(ExtractLineItems lineItems) {
-  final count = '${lineItems.items.length} item${lineItems.items.length == 1 ? '' : 's'}';
+  final count =
+      '${lineItems.items.length} item${lineItems.items.length == 1 ? '' : 's'}';
   if (lineItems.totalAmount == null) {
     return count;
   }

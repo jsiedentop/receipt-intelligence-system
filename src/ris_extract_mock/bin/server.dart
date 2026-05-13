@@ -32,13 +32,12 @@ Future<Response> _extractHandler(Request request) async {
     final fixtureJson =
         jsonDecode(await fixtureFile.readAsString()) as Map<String, dynamic>;
     fixtureJson['requestId'] = upload.requestId.value;
-    fixtureJson.putIfAbsent('structured', () {
-      return {
-        'lineItems': null,
-        'merchantInfo': null,
-        'qrcode_tse_data': null,
-      };
-    });
+    final structured = _asJsonMap(
+      fixtureJson.putIfAbsent('structured', () => <String, dynamic>{}),
+    );
+    structured.putIfAbsent('lineItems', () => null);
+    structured.putIfAbsent('merchantInfo', () => null);
+    structured.putIfAbsent('qrcode_tse_data', () => null);
     final metadata = fixtureJson['metadata'];
     if (metadata is Map<String, dynamic>) {
       final models = metadata['models'];
@@ -191,4 +190,16 @@ class FixtureNotFoundException extends MockApiException {
 class InternalFixtureException extends MockApiException {
   const InternalFixtureException(String message)
     : super(message, HttpStatus.internalServerError);
+}
+
+Map<String, dynamic> _asJsonMap(Object? value) {
+  if (value is Map<String, dynamic>) {
+    return value;
+  }
+
+  if (value is Map) {
+    return value.map((key, entryValue) => MapEntry(key.toString(), entryValue));
+  }
+
+  return <String, dynamic>{};
 }

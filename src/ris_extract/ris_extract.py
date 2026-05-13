@@ -105,6 +105,11 @@ MERCHANT_INFO_SCHEMA: dict[str, Any] = {
     "schema": {
         "type": "object",
         "properties": {
+            "merchant_name": {
+                "type": ["string", "null"],
+                "description": "Merchant name as printed on the receipt.",
+                "minLength": 1,
+            },
             "city": {
                 "type": ["string", "null"],
                 "description": "Merchant city name.",
@@ -138,6 +143,7 @@ MERCHANT_INFO_SCHEMA: dict[str, Any] = {
             },
         },
         "required": [
+            "merchant_name",
             "city",
             "post_code",
             "street",

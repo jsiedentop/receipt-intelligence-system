@@ -41,15 +41,9 @@ class AppAsyncView extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    errorMessage!,
-                    textAlign: TextAlign.center,
-                  ),
+                  Text(errorMessage!, textAlign: TextAlign.center),
                   const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: onRetry,
-                    child: const Text('Retry'),
-                  ),
+                  FilledButton(onPressed: onRetry, child: const Text('Retry')),
                 ],
               ),
             ),

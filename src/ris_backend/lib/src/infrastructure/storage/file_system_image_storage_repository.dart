@@ -31,7 +31,10 @@ class FileSystemImageStorageRepository implements ImageStorageRepository {
       );
       await receiptDirectory.create(recursive: true);
 
-      final absolutePath = path.join(receiptDirectory.path, 'original$extension');
+      final absolutePath = path.join(
+        receiptDirectory.path,
+        'original$extension',
+      );
       final file = File(absolutePath);
       await file.writeAsBytes(bytes, flush: true);
 
@@ -39,11 +42,18 @@ class FileSystemImageStorageRepository implements ImageStorageRepository {
         originalFileName: originalFileName,
         mimeType: mimeType,
         storagePath: path.relative(absolutePath, from: dataDirectoryPath),
-        sha256: sha256.convert(bytes).bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join(),
+        sha256: sha256
+            .convert(bytes)
+            .bytes
+            .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+            .join(),
         sizeBytes: bytes.length,
       );
     } catch (error) {
-      throw StorageWriteException('Failed to store uploaded image.', cause: error);
+      throw StorageWriteException(
+        'Failed to store uploaded image.',
+        cause: error,
+      );
     }
   }
 
@@ -70,7 +80,10 @@ class FileSystemImageStorageRepository implements ImageStorageRepository {
         await file.delete();
       }
     } catch (error) {
-      throw StorageWriteException('Failed to delete stored image.', cause: error);
+      throw StorageWriteException(
+        'Failed to delete stored image.',
+        cause: error,
+      );
     }
   }
 }

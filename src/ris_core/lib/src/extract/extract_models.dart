@@ -25,10 +25,15 @@ class ExtractResponse {
     return ExtractResponse(
       requestId: ExtractRequestId(json['requestId'] as String),
       source: ExtractSource.fromJson(_asJsonMap(json['source'], 'source')),
-      warnings: List<Object?>.from(json['warnings'] as List? ?? const <Object?>[]),
+      warnings: List<Object?>.from(
+        json['warnings'] as List? ?? const <Object?>[],
+      ),
       ocr: ExtractOcr.fromJson(_asJsonMap(json['ocr'], 'ocr')),
       structured: ExtractStructured.fromJson(
-        _asJsonMap(json['structured'] ?? const <String, Object?>{}, 'structured'),
+        _asJsonMap(
+          json['structured'] ?? const <String, Object?>{},
+          'structured',
+        ),
       ),
       metadata: ExtractMetadata.fromJson(
         _asJsonMap(json['metadata'], 'metadata'),
@@ -74,11 +79,7 @@ class ExtractSource {
   }
 
   JsonMap toJson() {
-    return {
-      'fileName': fileName,
-      'filePath': filePath,
-      'mimeType': mimeType,
-    };
+    return {'fileName': fileName, 'filePath': filePath, 'mimeType': mimeType};
   }
 }
 
@@ -125,7 +126,9 @@ class ExtractStructured {
     return ExtractStructured(
       lineItems: json['lineItems'] == null
           ? null
-          : ExtractLineItems.fromJson(_asJsonMap(json['lineItems'], 'structured.lineItems')),
+          : ExtractLineItems.fromJson(
+              _asJsonMap(json['lineItems'], 'structured.lineItems'),
+            ),
       merchantInfo: json['merchantInfo'] == null
           ? null
           : ExtractMerchantInfo.fromJson(
@@ -221,6 +224,7 @@ class ExtractLineItem {
 
 class ExtractMerchantInfo {
   const ExtractMerchantInfo({
+    required this.merchantName,
     required this.city,
     required this.postCode,
     required this.street,
@@ -229,6 +233,7 @@ class ExtractMerchantInfo {
     required this.dateTime,
   });
 
+  final String? merchantName;
   final String? city;
   final String? postCode;
   final String? street;
@@ -238,6 +243,7 @@ class ExtractMerchantInfo {
 
   factory ExtractMerchantInfo.fromJson(JsonMap json) {
     return ExtractMerchantInfo(
+      merchantName: json['merchant_name'] as String?,
       city: json['city'] as String?,
       postCode: json['post_code'] as String?,
       street: json['street'] as String?,
@@ -249,6 +255,7 @@ class ExtractMerchantInfo {
 
   JsonMap toJson() {
     return {
+      'merchant_name': merchantName,
       'city': city,
       'post_code': postCode,
       'street': street,
@@ -416,12 +423,7 @@ class BoundingBox {
   }
 
   JsonMap toJson() {
-    return {
-      'x': x,
-      'y': y,
-      'width': width,
-      'height': height,
-    };
+    return {'x': x, 'y': y, 'width': width, 'height': height};
   }
 }
 
@@ -439,10 +441,7 @@ class Point {
   }
 
   JsonMap toJson() {
-    return {
-      'x': x,
-      'y': y,
-    };
+    return {'x': x, 'y': y};
   }
 }
 
@@ -494,10 +493,7 @@ class ExtractModels {
   }
 
   JsonMap toJson() {
-    return {
-      'ocr': ocr.toJson(),
-      'llm': llm?.toJson(),
-    };
+    return {'ocr': ocr.toJson(), 'llm': llm?.toJson()};
   }
 }
 
@@ -553,11 +549,7 @@ class ExtractLlmModel {
   }
 
   JsonMap toJson() {
-    return {
-      'provider': provider,
-      'model': model,
-      'status': status,
-    };
+    return {'provider': provider, 'model': model, 'status': status};
   }
 }
 
@@ -575,10 +567,7 @@ class ExtractRuntime {
   }
 
   JsonMap toJson() {
-    return {
-      'python': python,
-      'platform': platform,
-    };
+    return {'python': python, 'platform': platform};
   }
 }
 
@@ -614,9 +603,7 @@ JsonMap _asJsonMap(Object? value, String fieldName) {
   }
 
   if (value is Map) {
-    return value.map(
-      (key, entryValue) => MapEntry(key.toString(), entryValue),
-    );
+    return value.map((key, entryValue) => MapEntry(key.toString(), entryValue));
   }
 
   throw FormatException('Expected $fieldName to be a JSON object.');

@@ -7,8 +7,11 @@ import 'package:ris_core/ris_core.dart';
 
 import '../../../core/widgets/app_async_view.dart';
 import '../../../core/widgets/app_shell.dart';
+import '../../../core/widgets/status_badge.dart';
 import '../data/receipt_detail_repository.dart';
 import '../logic/receipt_detail_controller.dart';
+import 'widgets/receipt_items_card.dart';
+import 'widgets/receipt_merchant_card.dart';
 import 'widgets/receipt_metadata_card.dart';
 
 class ReceiptDetailScreen extends StatelessWidget {
@@ -36,11 +39,12 @@ class _ReceiptDetailView extends StatelessWidget {
     return Consumer<ReceiptDetailController>(
       builder: (context, controller, child) {
         final receipt = controller.receipt;
-        final isExtractionInProgress = receipt?.status == 'pending' ||
-            receipt?.status == 'processing';
+        final isExtractionInProgress =
+            receipt?.status == 'pending' || receipt?.status == 'processing';
 
         return AppShell(
           title: 'Receipt details',
+          currentSection: AppSection.receipts,
           actions: [
             IconButton(
               tooltip: 'Refresh',
@@ -51,7 +55,7 @@ class _ReceiptDetailView extends StatelessWidget {
           ],
           body: AppAsyncView(
             isLoading: controller.isLoading,
-            errorMessage: controller.errorMessage,
+            errorMessage: receipt == null ? controller.errorMessage : null,
             onRetry: controller.load,
             child: receipt == null || controller.image == null
                 ? const SizedBox.shrink()
@@ -75,16 +79,22 @@ class _ReceiptDetailView extends StatelessWidget {
                       final metadataColumn = Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          if (controller.errorMessage != null) ...[
+                            _InlineErrorCard(message: controller.errorMessage!),
+                            const SizedBox(height: 16),
+                          ],
                           Wrap(
                             spacing: 12,
                             runSpacing: 12,
                             children: [
                               FilledButton.icon(
-                                onPressed: controller.isRestarting ||
+                                onPressed:
+                                    controller.isRestarting ||
                                         isExtractionInProgress
                                     ? null
                                     : controller.restartExtraction,
-                                icon: controller.isRestarting ||
+                                icon:
+                                    controller.isRestarting ||
                                         isExtractionInProgress
                                     ? const SizedBox(
                                         width: 18,
@@ -98,8 +108,8 @@ class _ReceiptDetailView extends StatelessWidget {
                                   controller.isRestarting
                                       ? 'Restarting...'
                                       : isExtractionInProgress
-                                          ? 'Extraction in progress...'
-                                          : 'Restart extraction',
+                                      ? 'Extraction in progress...'
+                                      : 'Restart extraction',
                                 ),
                               ),
                               OutlinedButton.icon(
@@ -109,24 +119,31 @@ class _ReceiptDetailView extends StatelessWidget {
                                         final confirmed = await showDialog<bool>(
                                           context: context,
                                           builder: (context) => AlertDialog(
-                                            title: const Text('Delete receipt?'),
+                                            title: const Text(
+                                              'Delete receipt?',
+                                            ),
                                             content: const Text(
                                               'This removes the receipt, its image, and all extraction data.',
                                             ),
                                             actions: [
                                               TextButton(
-                                                onPressed: () => Navigator.of(context).pop(false),
+                                                onPressed: () => Navigator.of(
+                                                  context,
+                                                ).pop(false),
                                                 child: const Text('Cancel'),
                                               ),
                                               FilledButton(
-                                                onPressed: () => Navigator.of(context).pop(true),
+                                                onPressed: () => Navigator.of(
+                                                  context,
+                                                ).pop(true),
                                                 child: const Text('Delete'),
                                               ),
                                             ],
                                           ),
                                         );
 
-                                        if (confirmed == true && context.mounted) {
+                                        if (confirmed == true &&
+                                            context.mounted) {
                                           await controller.deleteReceipt();
                                           if (context.mounted) {
                                             Navigator.of(context).pop();
@@ -135,19 +152,76 @@ class _ReceiptDetailView extends StatelessWidget {
                                       },
                                 icon: const Icon(Icons.delete_outline),
                                 label: Text(
-                                  controller.isDeleting ? 'Deleting...' : 'Delete',
+                                  controller.isDeleting
+                                      ? 'Deleting...'
+                                      : 'Delete',
                                 ),
                               ),
+                              StatusBadge(status: controller.receipt!.status),
                             ],
                           ),
                           const SizedBox(height: 16),
-                          if (isExtractionInProgress && !controller.isRestarting) ...[
+                          if (isExtractionInProgress &&
+                              !controller.isRestarting) ...[
                             Text(
                               'Restart is disabled while the current extraction is still running.',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                             const SizedBox(height: 16),
                           ],
+                          if (controller
+                              .receipt!
+                              .validationWarnings
+                              .isNotEmpty) ...[
+                            _ReceiptValidationWarningsCard(
+                              warnings: controller.receipt!.validationWarnings,
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                          ReceiptMerchantCard(
+                            receipt: controller.receipt!,
+                            isSaving: controller.isSavingMerchant,
+                            onSave:
+                                ({
+                                  required name,
+                                  required street,
+                                  required postCode,
+                                  required city,
+                                  required taxId,
+                                }) {
+                                  return controller.createMerchantForReceipt(
+                                    name: name,
+                                    street: street,
+                                    postCode: postCode,
+                                    city: city,
+                                    taxId: taxId,
+                                  );
+                                },
+                          ),
+                          const SizedBox(height: 16),
+                          ReceiptItemsCard(
+                            receipt: controller.receipt!,
+                            isUpdatingItem: controller.isUpdatingItem,
+                            onSaveItem:
+                                ({
+                                  required item,
+                                  required itemNumber,
+                                  required name,
+                                  required totalPrice,
+                                  required quantity,
+                                  required category,
+                                }) {
+                                  return controller.updateReceiptItem(
+                                    item: item,
+                                    itemNumber: itemNumber,
+                                    name: name,
+                                    totalPrice: totalPrice,
+                                    quantity: quantity,
+                                    category: category,
+                                  );
+                                },
+                          ),
+                          const SizedBox(height: 16),
                           ReceiptMetadataCard(receipt: controller.receipt!),
                         ],
                       );
@@ -158,10 +232,7 @@ class _ReceiptDetailView extends StatelessWidget {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(
-                                flex: 5,
-                                child: imageColumn,
-                              ),
+                              Expanded(flex: 5, child: imageColumn),
                               const SizedBox(width: 20),
                               Expanded(
                                 flex: 4,
@@ -187,7 +258,8 @@ class _ReceiptDetailView extends StatelessWidget {
                                 height: imageViewportHeight,
                                 child: _ScrollableReceiptImage(
                                   bytes: controller.image!.bytes,
-                                  overlayElements: controller.activeOverlayElements,
+                                  overlayElements:
+                                      controller.activeOverlayElements,
                                   overlayMode: controller.ocrOverlayMode,
                                 ),
                               ),
@@ -231,20 +303,73 @@ class _WideImagePanel extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Text(
-                  'Original image',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
             Expanded(
               child: _ScrollableReceiptImage(
                 bytes: bytes,
                 overlayElements: overlayElements,
                 overlayMode: overlayMode,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InlineErrorCard extends StatelessWidget {
+  const _InlineErrorCard({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Theme.of(context).colorScheme.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          message,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onErrorContainer,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReceiptValidationWarningsCard extends StatelessWidget {
+  const _ReceiptValidationWarningsCard({required this.warnings});
+
+  final List<ReceiptValidationWarningDto> warnings;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      color: colorScheme.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Validation warnings',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: colorScheme.onErrorContainer,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...warnings.map(
+              (warning) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  '${warning.code}: ${warning.message}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onErrorContainer,
+                  ),
+                ),
               ),
             ),
           ],
@@ -303,7 +428,8 @@ class _ScrollableReceiptImage extends StatefulWidget {
   final OcrOverlayMode overlayMode;
 
   @override
-  State<_ScrollableReceiptImage> createState() => _ScrollableReceiptImageState();
+  State<_ScrollableReceiptImage> createState() =>
+      _ScrollableReceiptImageState();
 }
 
 class _ScrollableReceiptImageState extends State<_ScrollableReceiptImage> {
@@ -356,14 +482,7 @@ class _OcrOverlayControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!controller.hasAnyOverlays) {
-      return Row(
-        children: [
-          Text(
-            'Original image',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-        ],
-      );
+      return SizedBox.shrink();
     }
 
     return Wrap(
@@ -371,10 +490,6 @@ class _OcrOverlayControls extends StatelessWidget {
       runSpacing: 12,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Text(
-          'Original image',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
         SegmentedButton<OcrOverlayMode>(
           segments: [
             const ButtonSegment<OcrOverlayMode>(
@@ -543,7 +658,10 @@ class _OcrOverlayPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (elements.isEmpty || size.isEmpty || imageSize == null || imageRect.isEmpty) {
+    if (elements.isEmpty ||
+        size.isEmpty ||
+        imageSize == null ||
+        imageRect.isEmpty) {
       return;
     }
 

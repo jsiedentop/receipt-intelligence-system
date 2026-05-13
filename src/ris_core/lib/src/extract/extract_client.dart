@@ -79,7 +79,9 @@ class ExtractClient {
       final json = _asJsonMap(jsonDecode(response.body), 'extract response');
       final extractResponse = ExtractResponse.fromJson(json);
       if (extractResponse.requestId.value != requestId.value) {
-        throw const FormatException('Extract response requestId does not match request.');
+        throw const FormatException(
+          'Extract response requestId does not match request.',
+        );
       }
       return extractResponse;
     } on FormatException catch (error) {
@@ -173,9 +175,7 @@ JsonMap _asJsonMap(Object? value, String fieldName) {
   }
 
   if (value is Map) {
-    return value.map(
-      (key, entryValue) => MapEntry(key.toString(), entryValue),
-    );
+    return value.map((key, entryValue) => MapEntry(key.toString(), entryValue));
   }
 
   throw FormatException('Expected $fieldName to be a JSON object.');

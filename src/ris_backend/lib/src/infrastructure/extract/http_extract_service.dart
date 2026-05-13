@@ -23,7 +23,10 @@ class HttpExtractService implements ExtractService {
         mimeType: mimeType,
       );
     } on ExtractClientException catch (error) {
-      throw ExtractionFailedException('Failed to extract receipt.', cause: error);
+      throw ExtractionFailedException(
+        'Failed to extract receipt.',
+        cause: error,
+      );
     }
   }
 }

@@ -25,10 +25,7 @@ class StatusBadge extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Text(
           status,
-          style: TextStyle(
-            color: foreground,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(color: foreground, fontWeight: FontWeight.w600),
         ),
       ),
     );

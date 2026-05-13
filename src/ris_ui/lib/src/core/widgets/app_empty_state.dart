@@ -26,10 +26,7 @@ class AppEmptyState extends StatelessWidget {
                 Text(title, style: Theme.of(context).textTheme.headlineSmall),
                 const SizedBox(height: 12),
                 Text(message, textAlign: TextAlign.center),
-                if (action != null) ...[
-                  const SizedBox(height: 20),
-                  action!,
-                ],
+                if (action != null) ...[const SizedBox(height: 20), action!],
               ],
             ),
           ),

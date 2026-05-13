@@ -13,8 +13,48 @@ class RisReceiptDetailRepository implements ReceiptDetailRepository {
   }
 
   @override
+  Future<ReceiptResponseDto> createMerchantForReceipt({
+    required ReceiptId receiptId,
+    required String name,
+    required String street,
+    required String postCode,
+    required String city,
+    required String taxId,
+  }) {
+    return _backendClient.createMerchantForReceipt(
+      receiptId: receiptId,
+      name: name,
+      street: street,
+      postCode: postCode,
+      city: city,
+      taxId: taxId,
+    );
+  }
+
+  @override
   Future<ReceiptResponseDto> getReceiptById(ReceiptId receiptId) {
     return _backendClient.getReceiptById(receiptId);
+  }
+
+  @override
+  Future<ReceiptResponseDto> updateReceiptItem({
+    required ReceiptId receiptId,
+    required String itemId,
+    required String? itemNumber,
+    required String? name,
+    required double? totalPrice,
+    required int? quantity,
+    required ReceiptItemCategory? category,
+  }) {
+    return _backendClient.updateReceiptItem(
+      receiptId: receiptId,
+      itemId: itemId,
+      itemNumber: itemNumber,
+      name: name,
+      totalPrice: totalPrice,
+      quantity: quantity,
+      category: category,
+    );
   }
 
   @override

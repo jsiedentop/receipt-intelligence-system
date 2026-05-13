@@ -44,6 +44,18 @@ class ReceiptNotFoundException extends NotFoundException {
   const ReceiptNotFoundException(super.message, {super.cause});
 }
 
+class MerchantNotFoundException extends NotFoundException {
+  const MerchantNotFoundException(super.message, {super.cause});
+}
+
+class ReceiptItemNotFoundException extends NotFoundException {
+  const ReceiptItemNotFoundException(super.message, {super.cause});
+}
+
+class ReceiptMerchantConflictException extends ConflictException {
+  const ReceiptMerchantConflictException(super.message, {super.cause});
+}
+
 class ConfigurationException extends ServerException {
   const ConfigurationException(super.message, {super.cause});
 }

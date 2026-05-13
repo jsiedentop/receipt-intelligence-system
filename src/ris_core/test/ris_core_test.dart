@@ -17,7 +17,9 @@ void main() {
     expect(response.source.fileName, 'tmp80blzw3o.png');
     expect(response.ocr.blocks, isNotEmpty);
     expect(response.metadata.extractor, 'ris_extract_donut');
-    expect(response.structured.lineItems, isNull);
+    expect(response.structured.lineItems, isNotNull);
+    expect(response.structured.lineItems!.currency, 'EUR');
+    expect(response.structured.lineItems!.items, hasLength(2));
     expect(response.metadata.models.llm?.status, 'missing_token');
   });
 
@@ -52,6 +54,32 @@ void main() {
         'sha256': 'abc',
         'sizeBytes': 123,
       },
+      'merchantId': 'mer_12345678901234',
+      'merchant': {
+        'id': 'mer_12345678901234',
+        'name': 'Lidl',
+        'street': 'Julius-Lossmann-Strasse 11',
+        'postCode': '90469',
+        'city': 'Nuernberg',
+        'taxId': 'DE123456789',
+      },
+      'itemsCurrency': 'EUR',
+      'items': [
+        {
+          'id': 'itm_1',
+          'itemNumber': 'SKU-1',
+          'name': 'Milk',
+          'totalPrice': 1.99,
+          'quantity': 2,
+          'category': 'FOOD',
+        },
+      ],
+      'validationWarnings': [
+        {
+          'code': 'ITEM_TOTAL_MISMATCH',
+          'message': 'Sum of items differs from extracted total amount.',
+        },
+      ],
       'extraction': {
         'requestId': 'ext_12345678901234',
         'rawText': 'demo',
@@ -85,8 +113,37 @@ void main() {
 
     expect(dto.id.value, 'rcp_12345678901234');
     expect(dto.extractRequestId.value, 'ext_12345678901234');
+    expect(dto.merchantId!.value, 'mer_12345678901234');
+    expect(dto.merchant!.name, 'Lidl');
+    expect(dto.itemsCurrency, 'EUR');
+    expect(dto.items, hasLength(1));
+    expect(dto.items.first.category, ReceiptItemCategory.food);
+    expect(dto.validationWarnings, hasLength(1));
     expect(dto.extraction!.requestId.value, 'ext_12345678901234');
     expect(dto.extraction!.structured.lineItems, isNull);
+  });
+
+  test('parses receipt item category enum from api value', () {
+    expect(
+      ReceiptItemCategory.fromApiValue('RESTAURANT'),
+      ReceiptItemCategory.restaurant,
+    );
+  });
+
+  test('parses backend merchant response dto', () {
+    final dto = MerchantResponseDto.fromJson({
+      'id': 'mer_12345678901234',
+      'name': 'Lidl',
+      'street': 'Julius-Lossmann-Strasse 11',
+      'postCode': '90469',
+      'city': 'Nuernberg',
+      'taxId': 'DE123456789',
+    });
+
+    expect(dto.id.value, 'mer_12345678901234');
+    expect(dto.name, 'Lidl');
+    expect(dto.postCode, '90469');
+    expect(dto.city, 'Nuernberg');
   });
 
   test('backend client parses create receipt responses', () async {
@@ -107,6 +164,25 @@ void main() {
     expect(response.extraction, isNull);
   });
 
+  test('backend client parses create merchant responses', () async {
+    final client = BackendClient(
+      config: BackendClientConfig(baseUri: Uri.parse('http://localhost:8080')),
+      httpClient: _FakeBackendHttpClient(),
+    );
+
+    final response = await client.createMerchant(
+      name: 'Lidl',
+      street: 'Julius-Lossmann-Strasse 11',
+      postCode: '90469',
+      city: 'Nuernberg',
+      taxId: 'DE123456789',
+    );
+
+    expect(response.id.value, 'mer_12345678901234');
+    expect(response.name, 'Lidl');
+    expect(response.city, 'Nuernberg');
+  });
+
   test('backend client parses get receipt responses', () async {
     final client = BackendClient(
       config: BackendClientConfig(baseUri: Uri.parse('http://localhost:8080')),
@@ -119,7 +195,64 @@ void main() {
 
     expect(response.id.value, 'rcp_12345678901234');
     expect(response.status, 'processed');
+    expect(response.merchant?.name, 'Lidl');
     expect(response.extraction, isNotNull);
+  });
+
+  test('backend client parses create merchant for receipt responses', () async {
+    final client = BackendClient(
+      config: BackendClientConfig(baseUri: Uri.parse('http://localhost:8080')),
+      httpClient: _FakeBackendHttpClient(),
+    );
+
+    final response = await client.createMerchantForReceipt(
+      receiptId: ReceiptId('rcp_12345678901234'),
+      name: 'Lidl',
+      street: 'Julius-Lossmann-Strasse 11',
+      postCode: '90469',
+      city: 'Nuernberg',
+      taxId: 'DE123456789',
+    );
+
+    expect(response.merchantId?.value, 'mer_12345678901234');
+    expect(response.merchant?.city, 'Nuernberg');
+  });
+
+  test('backend client parses receipt item update responses', () async {
+    final client = BackendClient(
+      config: BackendClientConfig(baseUri: Uri.parse('http://localhost:8080')),
+      httpClient: _FakeBackendHttpClient(),
+    );
+
+    final response = await client.updateReceiptItem(
+      receiptId: ReceiptId('rcp_12345678901234'),
+      itemId: 'itm_1',
+      itemNumber: 'SKU-1',
+      name: 'Milk',
+      totalPrice: 2.49,
+      quantity: 3,
+      category: ReceiptItemCategory.food,
+    );
+
+    expect(response.items, hasLength(1));
+    expect(response.items.first.totalPrice, 2.49);
+    expect(response.items.first.quantity, 3);
+    expect(response.items.first.category, ReceiptItemCategory.food);
+  });
+
+  test('backend client parses get merchant responses', () async {
+    final client = BackendClient(
+      config: BackendClientConfig(baseUri: Uri.parse('http://localhost:8080')),
+      httpClient: _FakeBackendHttpClient(),
+    );
+
+    final response = await client.getMerchantById(
+      MerchantId('mer_12345678901234'),
+    );
+
+    expect(response.id.value, 'mer_12345678901234');
+    expect(response.street, 'Julius-Lossmann-Strasse 11');
+    expect(response.city, 'Nuernberg');
   });
 
   test('backend client parses paginated receipt list responses', () async {
@@ -135,6 +268,19 @@ void main() {
     expect(response.first.status, 'processing');
     expect(response.first.extraction, isNull);
     expect(response.last.id.value, 'rcp_12345678901234');
+  });
+
+  test('backend client parses merchant list responses', () async {
+    final client = BackendClient(
+      config: BackendClientConfig(baseUri: Uri.parse('http://localhost:8080')),
+      httpClient: _FakeBackendHttpClient(),
+    );
+
+    final response = await client.listMerchants();
+
+    expect(response, hasLength(2));
+    expect(response.first.id.value, 'mer_99999999999999');
+    expect(response.last.name, 'Lidl');
   });
 
   test('backend client parses receipt image responses', () async {
@@ -158,6 +304,15 @@ void main() {
     );
 
     await client.deleteReceipt(ReceiptId('rcp_12345678901234'));
+  });
+
+  test('backend client accepts delete merchant responses', () async {
+    final client = BackendClient(
+      config: BackendClientConfig(baseUri: Uri.parse('http://localhost:8080')),
+      httpClient: _FakeBackendHttpClient(),
+    );
+
+    await client.deleteMerchant(MerchantId('mer_12345678901234'));
   });
 
   test('backend client parses restart extraction responses', () async {
@@ -228,6 +383,11 @@ class _FakeBackendHttpClient extends http.BaseClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     if (request.method == 'DELETE' &&
+        request.url.path.endsWith('/v1/merchants/mer_12345678901234')) {
+      return http.StreamedResponse(Stream<List<int>>.empty(), 204);
+    }
+
+    if (request.method == 'DELETE' &&
         request.url.path.endsWith('/v1/receipts/rcp_12345678901234')) {
       return http.StreamedResponse(Stream<List<int>>.empty(), 204);
     }
@@ -240,15 +400,39 @@ class _FakeBackendHttpClient extends http.BaseClient {
       );
     }
 
-    final isRestart = request.method == 'POST' &&
-        request.url.path.endsWith('/extractions');
+    final isRestart =
+        request.method == 'POST' && request.url.path.endsWith('/extractions');
     final isCreate = request.method == 'POST' && !isRestart;
-    final isList = request.method == 'GET' &&
+    final isMerchantCreate =
+        request.method == 'POST' && request.url.path.endsWith('/v1/merchants');
+    final isList =
+        request.method == 'GET' &&
         request.url.path.endsWith('/v1/receipts') &&
         request.url.queryParameters.containsKey('page') &&
         request.url.queryParameters.containsKey('pageSize');
+    final isMerchantList =
+        request.method == 'GET' && request.url.path.endsWith('/v1/merchants');
     final body = jsonEncode(
-      isList
+      isMerchantList
+          ? [
+              {
+                'id': 'mer_99999999999999',
+                'name': 'Aldi',
+                'street': 'Marktstrasse 1',
+                'postCode': '10115',
+                'city': 'Berlin',
+                'taxId': 'DE999999999',
+              },
+              {
+                'id': 'mer_12345678901234',
+                'name': 'Lidl',
+                'street': 'Julius-Lossmann-Strasse 11',
+                'postCode': '90469',
+                'city': 'Nuernberg',
+                'taxId': 'DE123456789',
+              },
+            ]
+          : isList
           ? [
               {
                 'id': 'rcp_99999999999999',
@@ -262,6 +446,11 @@ class _FakeBackendHttpClient extends http.BaseClient {
                   'sha256': 'def',
                   'sizeBytes': 456,
                 },
+                'merchantId': null,
+                'merchant': null,
+                'itemsCurrency': null,
+                'items': const <Object?>[],
+                'validationWarnings': const <Object?>[],
                 'extraction': null,
               },
               {
@@ -276,10 +465,35 @@ class _FakeBackendHttpClient extends http.BaseClient {
                   'sha256': 'abc',
                   'sizeBytes': 123,
                 },
+                'merchantId': 'mer_12345678901234',
+                'merchant': {
+                  'id': 'mer_12345678901234',
+                  'name': 'Lidl',
+                  'street': 'Julius-Lossmann-Strasse 11',
+                  'postCode': '90469',
+                  'city': 'Nuernberg',
+                  'taxId': 'DE123456789',
+                },
+                'itemsCurrency': 'EUR',
+                'items': [
+                  {
+                    'id': 'itm_1',
+                    'itemNumber': 'SKU-1',
+                    'name': 'Milk',
+                    'totalPrice': 1.99,
+                    'quantity': 2,
+                    'category': 'FOOD',
+                  },
+                ],
+                'validationWarnings': const <Object?>[],
                 'extraction': {
                   'requestId': 'ext_12345678901234',
                   'rawText': 'demo',
-                  'ocr': {'rawText': 'demo', 'blocks': <Object?>[], 'lines': <Object?>[]},
+                  'ocr': {
+                    'rawText': 'demo',
+                    'blocks': <Object?>[],
+                    'lines': <Object?>[],
+                  },
                   'structured': {
                     'lineItems': null,
                     'merchantInfo': null,
@@ -307,69 +521,272 @@ class _FakeBackendHttpClient extends http.BaseClient {
                 },
               },
             ]
-          : isCreate || isRestart
-              ? {
-                  'id': 'rcp_12345678901234',
-                  'createdAt': '2026-05-12T20:17:12.345678Z',
-                  'status': 'pending',
-                  'extractRequestId': isRestart
-                      ? 'ext_99999999999999'
-                      : 'ext_12345678901234',
-                  'image': {
-                    'originalFileName': 'receipt-1.png',
-                    'mimeType': 'image/png',
-                    'storagePath': 'receipts/rcp_12345678901234/original.png',
-                    'sha256': 'abc',
-                    'sizeBytes': 123,
-                  },
-                  'extraction': null,
-                }
-              : {
-                  'id': 'rcp_12345678901234',
-                  'createdAt': '2026-05-12T20:17:12.345678Z',
-                  'status': 'processed',
-                  'extractRequestId': 'ext_12345678901234',
-                  'image': {
-                    'originalFileName': 'receipt-1.png',
-                    'mimeType': 'image/png',
-                    'storagePath': 'receipts/rcp_12345678901234/original.png',
-                    'sha256': 'abc',
-                    'sizeBytes': 123,
-                  },
-                  'extraction': {
-                    'requestId': 'ext_12345678901234',
-                    'rawText': 'demo',
-                    'ocr': {'rawText': 'demo', 'blocks': <Object?>[], 'lines': <Object?>[]},
-                    'structured': {
-                      'lineItems': null,
-                      'merchantInfo': null,
-                      'qrcode_tse_data': null,
-                    },
-                    'metadata': {
-                      'extractor': 'ris_extract_mock',
-                      'version': '0.1.0',
-                      'models': {
-                        'ocr': {
-                          'name': 'fixture',
-                          'textDetectionModel': 'fixture',
-                          'textRecognitionModel': 'fixture',
-                          'status': 'ok',
-                        },
-                        'llm': {
-                          'provider': 'openai',
-                          'model': 'gpt-5.4-nano',
-                          'status': 'missing_token',
-                        },
-                      },
-                      'runtime': {'python': 'dart', 'platform': 'test'},
-                    },
-                    'warnings': <Object?>[],
-                  },
+          : isMerchantCreate
+          ? {
+              'id': 'mer_12345678901234',
+              'name': 'Lidl',
+              'street': 'Julius-Lossmann-Strasse 11',
+              'postCode': '90469',
+              'city': 'Nuernberg',
+              'taxId': 'DE123456789',
+            }
+          : (isCreate || isRestart) && !request.url.path.endsWith('/merchant')
+          ? {
+              'id': 'rcp_12345678901234',
+              'createdAt': '2026-05-12T20:17:12.345678Z',
+              'status': 'pending',
+              'extractRequestId': isRestart
+                  ? 'ext_99999999999999'
+                  : 'ext_12345678901234',
+              'image': {
+                'originalFileName': 'receipt-1.png',
+                'mimeType': 'image/png',
+                'storagePath': 'receipts/rcp_12345678901234/original.png',
+                'sha256': 'abc',
+                'sizeBytes': 123,
+              },
+              'merchantId': null,
+              'merchant': null,
+              'itemsCurrency': null,
+              'items': const <Object?>[],
+              'validationWarnings': const <Object?>[],
+              'extraction': null,
+            }
+          : request.method == 'POST' &&
+                request.url.path.endsWith(
+                  '/v1/receipts/rcp_12345678901234/merchant',
+                )
+          ? {
+              'id': 'rcp_12345678901234',
+              'createdAt': '2026-05-12T20:17:12.345678Z',
+              'status': 'processed',
+              'extractRequestId': 'ext_12345678901234',
+              'image': {
+                'originalFileName': 'receipt-1.png',
+                'mimeType': 'image/png',
+                'storagePath': 'receipts/rcp_12345678901234/original.png',
+                'sha256': 'abc',
+                'sizeBytes': 123,
+              },
+              'merchantId': 'mer_12345678901234',
+              'merchant': {
+                'id': 'mer_12345678901234',
+                'name': 'Lidl',
+                'street': 'Julius-Lossmann-Strasse 11',
+                'postCode': '90469',
+                'city': 'Nuernberg',
+                'taxId': 'DE123456789',
+              },
+              'itemsCurrency': 'EUR',
+              'items': [
+                {
+                  'id': 'itm_1',
+                  'itemNumber': 'SKU-1',
+                  'name': 'Milk',
+                  'totalPrice': 1.99,
+                  'quantity': 2,
+                  'category': 'FOOD',
                 },
+              ],
+              'validationWarnings': const <Object?>[],
+              'extraction': {
+                'requestId': 'ext_12345678901234',
+                'rawText': 'demo',
+                'ocr': {
+                  'rawText': 'demo',
+                  'blocks': <Object?>[],
+                  'lines': <Object?>[],
+                },
+                'structured': {
+                  'lineItems': null,
+                  'merchantInfo': null,
+                  'qrcode_tse_data': null,
+                },
+                'metadata': {
+                  'extractor': 'ris_extract_mock',
+                  'version': '0.1.0',
+                  'models': {
+                    'ocr': {
+                      'name': 'fixture',
+                      'textDetectionModel': 'fixture',
+                      'textRecognitionModel': 'fixture',
+                      'status': 'ok',
+                    },
+                    'llm': {
+                      'provider': 'openai',
+                      'model': 'gpt-5.4-nano',
+                      'status': 'missing_token',
+                    },
+                  },
+                  'runtime': {'python': 'dart', 'platform': 'test'},
+                },
+                'warnings': <Object?>[],
+              },
+            }
+          : request.method == 'PATCH' &&
+                request.url.path.endsWith(
+                  '/v1/receipts/rcp_12345678901234/items/itm_1',
+                )
+          ? {
+              'id': 'rcp_12345678901234',
+              'createdAt': '2026-05-12T20:17:12.345678Z',
+              'status': 'processed',
+              'extractRequestId': 'ext_12345678901234',
+              'image': {
+                'originalFileName': 'receipt-1.png',
+                'mimeType': 'image/png',
+                'storagePath': 'receipts/rcp_12345678901234/original.png',
+                'sha256': 'abc',
+                'sizeBytes': 123,
+              },
+              'merchantId': 'mer_12345678901234',
+              'merchant': {
+                'id': 'mer_12345678901234',
+                'name': 'Lidl',
+                'street': 'Julius-Lossmann-Strasse 11',
+                'postCode': '90469',
+                'city': 'Nuernberg',
+                'taxId': 'DE123456789',
+              },
+              'itemsCurrency': 'EUR',
+              'items': [
+                {
+                  'id': 'itm_1',
+                  'itemNumber': 'SKU-1',
+                  'name': 'Milk',
+                  'totalPrice': 2.49,
+                  'quantity': 3,
+                  'category': 'FOOD',
+                },
+              ],
+              'validationWarnings': [
+                {
+                  'code': 'ITEM_TOTAL_MISMATCH',
+                  'message':
+                      'Sum of items differs from extracted total amount.',
+                },
+              ],
+              'extraction': {
+                'requestId': 'ext_12345678901234',
+                'rawText': 'demo',
+                'ocr': {
+                  'rawText': 'demo',
+                  'blocks': <Object?>[],
+                  'lines': <Object?>[],
+                },
+                'structured': {
+                  'lineItems': null,
+                  'merchantInfo': null,
+                  'qrcode_tse_data': null,
+                },
+                'metadata': {
+                  'extractor': 'ris_extract_mock',
+                  'version': '0.1.0',
+                  'models': {
+                    'ocr': {
+                      'name': 'fixture',
+                      'textDetectionModel': 'fixture',
+                      'textRecognitionModel': 'fixture',
+                      'status': 'ok',
+                    },
+                    'llm': {
+                      'provider': 'openai',
+                      'model': 'gpt-5.4-nano',
+                      'status': 'missing_token',
+                    },
+                  },
+                  'runtime': {'python': 'dart', 'platform': 'test'},
+                },
+                'warnings': <Object?>[],
+              },
+            }
+          : request.url.path.endsWith('/v1/merchants/mer_12345678901234')
+          ? {
+              'id': 'mer_12345678901234',
+              'name': 'Lidl',
+              'street': 'Julius-Lossmann-Strasse 11',
+              'postCode': '90469',
+              'city': 'Nuernberg',
+              'taxId': 'DE123456789',
+            }
+          : {
+              'id': 'rcp_12345678901234',
+              'createdAt': '2026-05-12T20:17:12.345678Z',
+              'status': 'processed',
+              'extractRequestId': 'ext_12345678901234',
+              'image': {
+                'originalFileName': 'receipt-1.png',
+                'mimeType': 'image/png',
+                'storagePath': 'receipts/rcp_12345678901234/original.png',
+                'sha256': 'abc',
+                'sizeBytes': 123,
+              },
+              'merchantId': 'mer_12345678901234',
+              'merchant': {
+                'id': 'mer_12345678901234',
+                'name': 'Lidl',
+                'street': 'Julius-Lossmann-Strasse 11',
+                'postCode': '90469',
+                'city': 'Nuernberg',
+                'taxId': 'DE123456789',
+              },
+              'itemsCurrency': 'EUR',
+              'items': [
+                {
+                  'id': 'itm_1',
+                  'itemNumber': 'SKU-1',
+                  'name': 'Milk',
+                  'totalPrice': 1.99,
+                  'quantity': 2,
+                  'category': 'FOOD',
+                },
+              ],
+              'validationWarnings': [
+                {
+                  'code': 'ITEM_TOTAL_MISMATCH',
+                  'message':
+                      'Sum of items differs from extracted total amount.',
+                },
+              ],
+              'extraction': {
+                'requestId': 'ext_12345678901234',
+                'rawText': 'demo',
+                'ocr': {
+                  'rawText': 'demo',
+                  'blocks': <Object?>[],
+                  'lines': <Object?>[],
+                },
+                'structured': {
+                  'lineItems': null,
+                  'merchantInfo': null,
+                  'qrcode_tse_data': null,
+                },
+                'metadata': {
+                  'extractor': 'ris_extract_mock',
+                  'version': '0.1.0',
+                  'models': {
+                    'ocr': {
+                      'name': 'fixture',
+                      'textDetectionModel': 'fixture',
+                      'textRecognitionModel': 'fixture',
+                      'status': 'ok',
+                    },
+                    'llm': {
+                      'provider': 'openai',
+                      'model': 'gpt-5.4-nano',
+                      'status': 'missing_token',
+                    },
+                  },
+                  'runtime': {'python': 'dart', 'platform': 'test'},
+                },
+                'warnings': <Object?>[],
+              },
+            },
     );
 
     final statusCode = switch (request.method) {
       'POST' => isRestart ? 202 : 201,
+      'PATCH' => 200,
       'GET' => 200,
       _ => 500,
     };

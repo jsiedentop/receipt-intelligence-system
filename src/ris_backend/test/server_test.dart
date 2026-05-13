@@ -23,7 +23,9 @@ void main() {
     extractProcess = await Process.start(
       'dart',
       ['run', 'bin/server.dart'],
-      workingDirectory: Directory.current.uri.resolve('../ris_extract_mock/').toFilePath(),
+      workingDirectory: Directory.current.uri
+          .resolve('../ris_extract_mock/')
+          .toFilePath(),
       environment: {
         'PORT': '$extractPort',
         'RIS_EXTRACT_MOCK_DELAY_MS': '1200',
@@ -60,93 +62,497 @@ void main() {
     expect(jsonDecode(response.body), {'status': 'ok'});
   });
 
-  test('creates receipt immediately and exposes processed extraction through polling', () async {
-    final startedAt = DateTime.now();
-    final createResponse = await _uploadFile(
+  test('creates merchant and returns persisted payload', () async {
+    final response = await http.post(
+      backendBaseUri.resolve('/v1/merchants'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'name': 'Lidl',
+        'street': 'Julius-Lossmann-Strasse 11',
+        'postCode': '90469',
+        'city': 'Nuernberg',
+        'taxId': 'DE123456789',
+      }),
+    );
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+
+    expect(response.statusCode, 201);
+    expect(body['id'], startsWith('mer_'));
+    expect(body['name'], 'Lidl');
+    expect(body['street'], 'Julius-Lossmann-Strasse 11');
+    expect(body['postCode'], '90469');
+    expect(body['city'], 'Nuernberg');
+    expect(body['taxId'], 'DE123456789');
+  });
+
+  test('gets merchant by id', () async {
+    final createResponse = await http.post(
+      backendBaseUri.resolve('/v1/merchants'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'name': 'Aldi',
+        'street': 'Marktstrasse 1',
+        'postCode': '10115',
+        'city': 'Berlin',
+        'taxId': 'DE999999999',
+      }),
+    );
+    final createdBody = jsonDecode(createResponse.body) as Map<String, dynamic>;
+    final merchantId = createdBody['id'] as String;
+
+    final getResponse = await http.get(
+      backendBaseUri.resolve('/v1/merchants/$merchantId'),
+    );
+    final body = jsonDecode(getResponse.body) as Map<String, dynamic>;
+
+    expect(getResponse.statusCode, 200);
+    expect(body['id'], merchantId);
+    expect(body['name'], 'Aldi');
+  });
+
+  test('creates merchant for receipt and assigns relation', () async {
+    final createReceiptResponse = await _uploadFile(
       backendBaseUri.resolve('/v1/receipts'),
       '../../data/receipt-1.png',
       contentType: MediaType('image', 'png'),
     );
-    final elapsed = DateTime.now().difference(startedAt);
-    final createdBody = jsonDecode(createResponse.body) as Map<String, dynamic>;
-    final receiptId = createdBody['id'] as String;
+    final createdReceipt =
+        jsonDecode(createReceiptResponse.body) as Map<String, dynamic>;
+    final receiptId = createdReceipt['id'] as String;
 
-    expect(createResponse.statusCode, 201);
-    expect(elapsed, lessThan(const Duration(milliseconds: 1000)));
-    expect(createdBody['status'], 'pending');
-    expect(createdBody['extractRequestId'], startsWith('ext_'));
-    expect(createdBody['extraction'], isNull);
+    final assignResponse = await http.post(
+      backendBaseUri.resolve('/v1/receipts/$receiptId/merchant'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'name': 'Lidl',
+        'street': 'Julius-Lossmann-Strasse 11',
+        'postCode': '90469',
+        'city': 'Nuernberg',
+        'taxId': 'DE123456789',
+      }),
+    );
+    final assignedBody =
+        jsonDecode(assignResponse.body) as Map<String, dynamic>;
 
-    final storagePath = createdBody['image']['storagePath'] as String;
-    final storedImage = File(path.join(tempDirectory.path, storagePath));
-    expect(await storedImage.exists(), isTrue);
+    expect(assignResponse.statusCode, 201);
+    expect(assignedBody['merchantId'], startsWith('mer_'));
+    expect((assignedBody['merchant'] as Map<String, dynamic>)['name'], 'Lidl');
+  });
 
-    final fetchedBody = await _pollReceipt(
-      backendBaseUri,
-      receiptId,
-      matcher: (body) => body['status'] == 'processed',
+  test('returns 409 when assigning a second merchant to receipt', () async {
+    final createReceiptResponse = await _uploadFile(
+      backendBaseUri.resolve('/v1/receipts'),
+      '../../data/receipt-1.png',
+      contentType: MediaType('image', 'png'),
+    );
+    final createdReceipt =
+        jsonDecode(createReceiptResponse.body) as Map<String, dynamic>;
+    final receiptId = createdReceipt['id'] as String;
+
+    await http.post(
+      backendBaseUri.resolve('/v1/receipts/$receiptId/merchant'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'name': 'Lidl',
+        'street': 'Julius-Lossmann-Strasse 11',
+        'postCode': '90469',
+        'city': 'Nuernberg',
+        'taxId': 'DE123456789',
+      }),
     );
 
-    expect(fetchedBody['id'], receiptId);
-    expect(fetchedBody['extraction']['rawText'], contains('LDL'));
+    final secondAssignResponse = await http.post(
+      backendBaseUri.resolve('/v1/receipts/$receiptId/merchant'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'name': 'Rewe',
+        'street': 'Hauptstrasse 7',
+        'postCode': '20095',
+        'city': 'Hamburg',
+        'taxId': 'DE111111111',
+      }),
+    );
+
+    expect(secondAssignResponse.statusCode, 409);
+  });
+
+  test('returns 409 when deleting merchant assigned to receipt', () async {
+    final createReceiptResponse = await _uploadFile(
+      backendBaseUri.resolve('/v1/receipts'),
+      '../../data/receipt-1.png',
+      contentType: MediaType('image', 'png'),
+    );
+    final createdReceipt =
+        jsonDecode(createReceiptResponse.body) as Map<String, dynamic>;
+    final receiptId = createdReceipt['id'] as String;
+
+    final assignResponse = await http.post(
+      backendBaseUri.resolve('/v1/receipts/$receiptId/merchant'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'name': 'Lidl',
+        'street': 'Julius-Lossmann-Strasse 11',
+        'postCode': '90469',
+        'city': 'Nuernberg',
+        'taxId': 'DE123456789',
+      }),
+    );
+    final assignedBody =
+        jsonDecode(assignResponse.body) as Map<String, dynamic>;
+    final merchantId = assignedBody['merchantId'] as String;
+
+    final deleteResponse = await http.delete(
+      backendBaseUri.resolve('/v1/merchants/$merchantId'),
+    );
+
+    expect(deleteResponse.statusCode, 409);
+  });
+
+  test('lists merchants ordered by name', () async {
+    await http.post(
+      backendBaseUri.resolve('/v1/merchants'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'name': 'Rewe',
+        'street': 'Hauptstrasse 7',
+        'postCode': '20095',
+        'city': 'Hamburg',
+        'taxId': 'DE111111111',
+      }),
+    );
+    await http.post(
+      backendBaseUri.resolve('/v1/merchants'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'name': 'Aldi',
+        'street': 'Marktstrasse 1',
+        'postCode': '10115',
+        'city': 'Berlin',
+        'taxId': 'DE999999999',
+      }),
+    );
+
+    final response = await http.get(backendBaseUri.resolve('/v1/merchants'));
+    final body = jsonDecode(response.body) as List<dynamic>;
+
+    expect(response.statusCode, 200);
+    expect(body, hasLength(2));
+    expect((body[0] as Map<String, dynamic>)['name'], 'Aldi');
+    expect((body[1] as Map<String, dynamic>)['name'], 'Rewe');
+  });
+
+  test('deletes merchant and removes it from api responses', () async {
+    final createResponse = await http.post(
+      backendBaseUri.resolve('/v1/merchants'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'name': 'Lidl',
+        'street': 'Julius-Lossmann-Strasse 11',
+        'postCode': '90469',
+        'city': 'Nuernberg',
+        'taxId': 'DE123456789',
+      }),
+    );
+    final createdBody = jsonDecode(createResponse.body) as Map<String, dynamic>;
+    final merchantId = createdBody['id'] as String;
+
+    final deleteResponse = await http.delete(
+      backendBaseUri.resolve('/v1/merchants/$merchantId'),
+    );
+    final getResponse = await http.get(
+      backendBaseUri.resolve('/v1/merchants/$merchantId'),
+    );
+    final listResponse = await http.get(
+      backendBaseUri.resolve('/v1/merchants'),
+    );
+    final listedMerchants = jsonDecode(listResponse.body) as List<dynamic>;
+
+    expect(deleteResponse.statusCode, 204);
+    expect(getResponse.statusCode, 404);
     expect(
-      fetchedBody['extraction']['requestId'],
-      createdBody['extractRequestId'],
+      listedMerchants.where(
+        (entry) => (entry as Map<String, dynamic>)['id'] == merchantId,
+      ),
+      isEmpty,
     );
-    expect(fetchedBody['extraction']['structured'], isA<Map<String, dynamic>>());
   });
 
-  test('restart clears stale extraction payload and returns pending receipt', () async {
-    final createResponse = await _uploadFile(
-      backendBaseUri.resolve('/v1/receipts'),
-      '../../data/receipt-1.png',
-      contentType: MediaType('image', 'png'),
+  test('returns 400 for invalid merchant create requests', () async {
+    final wrongTypeResponse = await http.post(
+      backendBaseUri.resolve('/v1/merchants'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'name': 'Lidl',
+        'street': 'Julius-Lossmann-Strasse 11',
+        'postCode': 90469,
+        'city': 'Nuernberg',
+        'taxId': 'DE123456789',
+      }),
     );
-    final createdBody = jsonDecode(createResponse.body) as Map<String, dynamic>;
-    final receiptId = createdBody['id'] as String;
+    final emptyBodyResponse = await http.post(
+      backendBaseUri.resolve('/v1/merchants'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'name': '',
+        'street': 'Street',
+        'postCode': '12345',
+        'city': 'Town',
+        'taxId': 'DE123',
+      }),
+    );
 
-    final processedBody = await _pollReceipt(
+    expect(wrongTypeResponse.statusCode, 400);
+    expect(emptyBodyResponse.statusCode, 400);
+  });
+
+  test('returns 404 for missing merchants', () async {
+    final response = await http.get(
+      backendBaseUri.resolve('/v1/merchants/missing-id'),
+    );
+
+    expect(response.statusCode, 404);
+  });
+
+  test('returns 404 when assigning merchant to missing receipt', () async {
+    final response = await http.post(
+      backendBaseUri.resolve('/v1/receipts/missing-id/merchant'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'name': 'Lidl',
+        'street': 'Julius-Lossmann-Strasse 11',
+        'postCode': '90469',
+        'city': 'Nuernberg',
+        'taxId': 'DE123456789',
+      }),
+    );
+
+    expect(response.statusCode, 404);
+  });
+
+  test(
+    'creates receipt immediately and exposes processed extraction through polling',
+    () async {
+      final startedAt = DateTime.now();
+      final createResponse = await _uploadFile(
+        backendBaseUri.resolve('/v1/receipts'),
+        '../../data/receipt-1.png',
+        contentType: MediaType('image', 'png'),
+      );
+      final elapsed = DateTime.now().difference(startedAt);
+      final createdBody =
+          jsonDecode(createResponse.body) as Map<String, dynamic>;
+      final receiptId = createdBody['id'] as String;
+
+      expect(createResponse.statusCode, 201);
+      expect(elapsed, lessThan(const Duration(milliseconds: 1000)));
+      expect(createdBody['status'], 'pending');
+      expect(createdBody['extractRequestId'], startsWith('ext_'));
+      expect(createdBody['extraction'], isNull);
+
+      final storagePath = createdBody['image']['storagePath'] as String;
+      final storedImage = File(path.join(tempDirectory.path, storagePath));
+      expect(await storedImage.exists(), isTrue);
+
+      final fetchedBody = await _pollReceipt(
+        backendBaseUri,
+        receiptId,
+        matcher: (body) => body['status'] == 'processed',
+      );
+
+      expect(fetchedBody['id'], receiptId);
+      expect(fetchedBody['extraction']['rawText'], contains('LDL'));
+      expect(
+        fetchedBody['extraction']['requestId'],
+        createdBody['extractRequestId'],
+      );
+      expect(
+        fetchedBody['extraction']['structured'],
+        isA<Map<String, dynamic>>(),
+      );
+      expect(fetchedBody['itemsCurrency'], 'EUR');
+      expect(fetchedBody['items'], isA<List<dynamic>>());
+      expect(fetchedBody['validationWarnings'], isEmpty);
+    },
+  );
+
+  test(
+    'persists extracted receipt items after successful processing',
+    () async {
+      final processedBody = await _createProcessedReceipt(
+        backendBaseUri,
+        '../../data/receipt-1.png',
+      );
+
+      final items = processedBody['items'] as List<dynamic>;
+      expect(processedBody['itemsCurrency'], 'EUR');
+      expect(items, hasLength(2));
+      expect(items[0], isA<Map<String, dynamic>>());
+      expect((items[0] as Map<String, dynamic>)['itemNumber'], '0508023');
+      expect(items[0]['name'], 'Sandale');
+      expect(items[0]['totalPrice'], 9.99);
+      expect(items[0]['quantity'], 1);
+      expect(items[0]['category'], 'OTHER');
+      expect(processedBody['validationWarnings'], isEmpty);
+    },
+  );
+
+  test(
+    'updates a receipt item and returns validation warnings for total mismatches',
+    () async {
+      final processedBody = await _createProcessedReceipt(
+        backendBaseUri,
+        '../../data/receipt-1.png',
+      );
+      final receiptId = processedBody['id'] as String;
+      final items = processedBody['items'] as List<dynamic>;
+      final firstItem = items.first as Map<String, dynamic>;
+
+      final response = await http.patch(
+        backendBaseUri.resolve(
+          '/v1/receipts/$receiptId/items/${firstItem['id']}',
+        ),
+        headers: {'content-type': 'application/json'},
+        body: jsonEncode({
+          'itemNumber': '0508023-A',
+          'name': 'Beach sandal',
+          'totalPrice': 8.50,
+          'quantity': 2,
+          'category': 'HOUSEHOLD',
+        }),
+      );
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final updatedItems = body['items'] as List<dynamic>;
+      final updatedFirstItem = updatedItems.first as Map<String, dynamic>;
+      final warnings = body['validationWarnings'] as List<dynamic>;
+
+      expect(response.statusCode, 200);
+      expect(updatedFirstItem['itemNumber'], '0508023-A');
+      expect(updatedFirstItem['name'], 'Beach sandal');
+      expect(updatedFirstItem['totalPrice'], 8.5);
+      expect(updatedFirstItem['quantity'], 2);
+      expect(updatedFirstItem['category'], 'HOUSEHOLD');
+      expect(warnings, hasLength(1));
+      expect(
+        (warnings.first as Map<String, dynamic>)['code'],
+        'ITEM_TOTAL_MISMATCH',
+      );
+    },
+  );
+
+  test(
+    'returns 400 when updating a receipt item with invalid quantity',
+    () async {
+      final processedBody = await _createProcessedReceipt(
+        backendBaseUri,
+        '../../data/receipt-1.png',
+      );
+      final receiptId = processedBody['id'] as String;
+      final items = processedBody['items'] as List<dynamic>;
+      final firstItem = items.first as Map<String, dynamic>;
+
+      final response = await http.patch(
+        backendBaseUri.resolve(
+          '/v1/receipts/$receiptId/items/${firstItem['id']}',
+        ),
+        headers: {'content-type': 'application/json'},
+        body: jsonEncode({
+          'itemNumber': firstItem['itemNumber'],
+          'name': firstItem['name'],
+          'totalPrice': firstItem['totalPrice'],
+          'quantity': 0,
+          'category': firstItem['category'],
+        }),
+      );
+
+      expect(response.statusCode, 400);
+    },
+  );
+
+  test('returns 404 when updating a missing receipt item', () async {
+    final processedBody = await _createProcessedReceipt(
       backendBaseUri,
-      receiptId,
-      matcher: (body) => body['status'] == 'processed',
-    );
-    final firstRequestId = processedBody['extractRequestId'] as String;
-
-    final restartResponse = await http.post(
-      backendBaseUri.resolve('/v1/receipts/$receiptId/extractions'),
-    );
-    final restartedBody = jsonDecode(restartResponse.body) as Map<String, dynamic>;
-
-    expect(restartResponse.statusCode, 202);
-    expect(restartedBody['status'], 'pending');
-    expect(restartedBody['extraction'], isNull);
-    expect(restartedBody['extractRequestId'], startsWith('ext_'));
-    expect(restartedBody['extractRequestId'], isNot(firstRequestId));
-
-    final repolledBody = await _pollReceipt(
-      backendBaseUri,
-      receiptId,
-      matcher: (body) => body['status'] == 'processed',
-    );
-    expect(repolledBody['extractRequestId'], restartedBody['extractRequestId']);
-    expect(repolledBody['extraction'], isNotNull);
-  });
-
-  test('returns 409 when restart is requested during active extraction', () async {
-    final createResponse = await _uploadFile(
-      backendBaseUri.resolve('/v1/receipts'),
       '../../data/receipt-1.png',
-      contentType: MediaType('image', 'png'),
     );
-    final createdBody = jsonDecode(createResponse.body) as Map<String, dynamic>;
-    final receiptId = createdBody['id'] as String;
+    final receiptId = processedBody['id'] as String;
 
-    final restartResponse = await http.post(
-      backendBaseUri.resolve('/v1/receipts/$receiptId/extractions'),
+    final response = await http.patch(
+      backendBaseUri.resolve('/v1/receipts/$receiptId/items/missing-item'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'itemNumber': 'missing',
+        'name': 'Missing item',
+        'totalPrice': 1.0,
+        'quantity': 1,
+        'category': 'OTHER',
+      }),
     );
 
-    expect(restartResponse.statusCode, 409);
+    expect(response.statusCode, 404);
   });
+
+  test(
+    'restart clears stale extraction payload and returns pending receipt',
+    () async {
+      final createResponse = await _uploadFile(
+        backendBaseUri.resolve('/v1/receipts'),
+        '../../data/receipt-1.png',
+        contentType: MediaType('image', 'png'),
+      );
+      final createdBody =
+          jsonDecode(createResponse.body) as Map<String, dynamic>;
+      final receiptId = createdBody['id'] as String;
+
+      final processedBody = await _pollReceipt(
+        backendBaseUri,
+        receiptId,
+        matcher: (body) => body['status'] == 'processed',
+      );
+      final firstRequestId = processedBody['extractRequestId'] as String;
+
+      final restartResponse = await http.post(
+        backendBaseUri.resolve('/v1/receipts/$receiptId/extractions'),
+      );
+      final restartedBody =
+          jsonDecode(restartResponse.body) as Map<String, dynamic>;
+
+      expect(restartResponse.statusCode, 202);
+      expect(restartedBody['status'], 'pending');
+      expect(restartedBody['extraction'], isNull);
+      expect(restartedBody['extractRequestId'], startsWith('ext_'));
+      expect(restartedBody['extractRequestId'], isNot(firstRequestId));
+
+      final repolledBody = await _pollReceipt(
+        backendBaseUri,
+        receiptId,
+        matcher: (body) => body['status'] == 'processed',
+      );
+      expect(
+        repolledBody['extractRequestId'],
+        restartedBody['extractRequestId'],
+      );
+      expect(repolledBody['extraction'], isNotNull);
+    },
+  );
+
+  test(
+    'returns 409 when restart is requested during active extraction',
+    () async {
+      final createResponse = await _uploadFile(
+        backendBaseUri.resolve('/v1/receipts'),
+        '../../data/receipt-1.png',
+        contentType: MediaType('image', 'png'),
+      );
+      final createdBody =
+          jsonDecode(createResponse.body) as Map<String, dynamic>;
+      final receiptId = createdBody['id'] as String;
+
+      final restartResponse = await http.post(
+        backendBaseUri.resolve('/v1/receipts/$receiptId/extractions'),
+      );
+
+      expect(restartResponse.statusCode, 409);
+    },
+  );
 
   test('lists receipts with page and pageSize pagination', () async {
     await _uploadFile(
@@ -328,6 +734,23 @@ Future<Map<String, dynamic>> _pollReceipt(
   }
 
   throw StateError('Polling timed out.');
+}
+
+Future<Map<String, dynamic>> _createProcessedReceipt(
+  Uri backendBaseUri,
+  String filePath,
+) async {
+  final createResponse = await _uploadFile(
+    backendBaseUri.resolve('/v1/receipts'),
+    filePath,
+    contentType: MediaType('image', 'png'),
+  );
+  final createdBody = jsonDecode(createResponse.body) as Map<String, dynamic>;
+  return _pollReceipt(
+    backendBaseUri,
+    createdBody['id'] as String,
+    matcher: (body) => body['status'] == 'processed',
+  );
 }
 
 Future<int> _findFreePort() async {

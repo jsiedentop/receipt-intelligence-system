@@ -24,6 +24,77 @@ Example response:
 }
 ```
 
+### `POST /v1/merchants`
+
+Purpose:
+- create a persisted merchant record
+
+Request body:
+- `application/json`
+
+```json
+{
+  "name": "Lidl",
+  "street": "Julius-Lossmann-Strasse 11",
+  "postCode": "90469",
+  "city": "Nuernberg",
+  "taxId": "DE123456789"
+}
+```
+
+Success response:
+- `201 Created`
+
+Response headers:
+- `Location: /v1/merchants/{merchantId}`
+
+Example response:
+
+```json
+{
+  "id": "mer_1747061885123456",
+  "name": "Lidl",
+  "street": "Julius-Lossmann-Strasse 11",
+  "postCode": "90469",
+  "city": "Nuernberg",
+  "taxId": "DE123456789"
+}
+```
+
+### `GET /v1/merchants/{merchantId}`
+
+Purpose:
+- retrieve one persisted merchant
+
+Success response:
+- `200 OK`
+
+Not found response:
+- `404 Not Found`
+
+### `GET /v1/merchants`
+
+Purpose:
+- list persisted merchants for overview screens
+
+Success response:
+- `200 OK`
+
+Current response shape:
+- JSON array of merchant objects
+- ordered by `name` ascending
+
+### `DELETE /v1/merchants/{merchantId}`
+
+Purpose:
+- delete one persisted merchant
+
+Success response:
+- `204 No Content`
+
+Not found response:
+- `404 Not Found`
+
 ### `POST /v1/receipts`
 
 Purpose:
@@ -46,6 +117,11 @@ Current response fields:
 - `createdAt`
 - `status`
 - `extractRequestId`
+- `merchantId`
+- `merchant`
+- `itemsCurrency`
+- `items`
+- `validationWarnings`
 - `image`
 - `extraction`
 
@@ -60,6 +136,11 @@ Example response:
   "createdAt": "2026-05-12T20:17:12.345678Z",
   "status": "pending",
   "extractRequestId": "ext_1a789ec91878",
+  "merchantId": null,
+  "merchant": null,
+  "itemsCurrency": null,
+  "items": [],
+  "validationWarnings": [],
   "image": {
     "originalFileName": "receipt-1.png",
     "mimeType": "image/png",
@@ -85,6 +166,67 @@ Not found response:
 
 Current response shape:
 - same object structure as `POST /v1/receipts`
+
+### `PATCH /v1/receipts/{receiptId}/items/{itemId}`
+
+Purpose:
+- update one persisted receipt item
+- re-run receipt item validation warnings after the update
+
+Request body:
+- `application/json`
+
+```json
+{
+  "itemNumber": "0508023",
+  "name": "Sandale",
+  "totalPrice": 9.99,
+  "quantity": 1,
+  "category": "OTHER"
+}
+```
+
+Rules:
+- `quantity` may be `null` or an integer `>= 1`
+- `totalPrice` may be `null` or a number `>= 0`
+- `category` may be `null` or one of `FOOD`, `HOUSEHOLD`, `RESTAURANT`, `HEALTH`, `ELECTRONICS`, `OTHER`
+- `currency` is receipt-level data and cannot be edited through this endpoint
+
+Success response:
+- `200 OK`
+- response body is the updated receipt object
+
+Validation response:
+- `400 Bad Request` for invalid field types or values
+
+Not found response:
+- `404 Not Found` when the receipt or receipt item does not exist
+
+### `POST /v1/receipts/{receiptId}/merchant`
+
+Purpose:
+- create a merchant from receipt detail input
+- assign the created merchant to the receipt
+
+Request body:
+- `application/json`
+
+```json
+{
+  "name": "Lidl",
+  "street": "Julius-Lossmann-Strasse 11",
+  "postCode": "90469",
+  "city": "Nuernberg",
+  "taxId": "DE123456789"
+}
+```
+
+Success response:
+- `201 Created`
+- response body is the updated receipt object
+
+Conflict response:
+- `409 Conflict` when the receipt already has an assigned merchant
 
 ### `GET /v1/receipts/{receiptId}/image`
 
@@ -139,6 +281,11 @@ Example response:
     "createdAt": "2026-05-12T20:18:12.345678Z",
     "status": "processing",
     "extractRequestId": "ext_1a789ec91879",
+    "merchantId": null,
+    "merchant": null,
+    "itemsCurrency": null,
+    "items": [],
+    "validationWarnings": [],
     "image": {
       "originalFileName": "receipt-2.png",
       "mimeType": "image/png",
@@ -153,6 +300,28 @@ Example response:
     "createdAt": "2026-05-12T20:17:12.345678Z",
     "status": "processed",
     "extractRequestId": "ext_1a789ec91878",
+    "merchantId": null,
+    "merchant": null,
+    "itemsCurrency": "EUR",
+    "items": [
+      {
+        "id": "itm_4m3n2b1v9c8x7z",
+        "itemNumber": "0508023",
+        "name": "Sandale",
+        "totalPrice": 9.99,
+        "quantity": 1,
+        "category": "OTHER"
+      },
+      {
+        "id": "itm_5n4m3b2v1c9x8z",
+        "itemNumber": "0537161",
+        "name": "LuftbettCamp",
+        "totalPrice": 9.99,
+        "quantity": 1,
+        "category": "HOUSEHOLD"
+      }
+    ],
+    "validationWarnings": [],
     "image": {
       "originalFileName": "receipt-1.png",
       "mimeType": "image/png",
@@ -217,6 +386,17 @@ Current response shape:
 
 ## 3. Models
 
+### Merchant
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | string | Backend merchant identifier. |
+| `name` | string | Merchant display name. |
+| `street` | string | Merchant street address. |
+| `postCode` | string | Merchant postal code. |
+| `city` | string | Merchant city. |
+| `taxId` | string | Merchant tax identifier. |
+
 ### Receipt
 
 | Field | Type | Description |
@@ -225,8 +405,24 @@ Current response shape:
 | `createdAt` | string | UTC timestamp in ISO-8601 format. |
 | `status` | string | Current extraction state. One of `pending`, `processing`, `processed`, or `failed`. |
 | `extractRequestId` | string | Identifier of the current extraction attempt. |
+| `merchantId` | string or `null` | Linked merchant identifier when a merchant is assigned. |
+| `merchant` | object or `null` | Linked merchant snapshot for receipt detail views. |
+| `itemsCurrency` | string or `null` | Currency shared by the persisted receipt items. |
+| `items` | array | Persisted receipt items derived from structured extraction and later manual edits. |
+| `validationWarnings` | array | Receipt-level validation warnings generated from persisted item data. |
 | `image` | object | Stored image metadata. |
 | `extraction` | object or `null` | Raw extraction payload persisted by the backend. It is `null` while extraction is pending, processing, or failed. |
+
+### linked `merchant`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | string | Linked merchant identifier. |
+| `name` | string | Merchant display name. |
+| `street` | string | Merchant street address. |
+| `postCode` | string | Merchant postal code. |
+| `city` | string | Merchant city. |
+| `taxId` | string | Merchant tax identifier. |
 
 ### `image`
 
@@ -237,6 +433,24 @@ Current response shape:
 | `storagePath` | string | Relative filesystem path below the backend data directory. |
 | `sha256` | string | SHA-256 hash of the stored image bytes. |
 | `sizeBytes` | number | Stored image size in bytes. |
+
+### `items[]`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | string | Backend receipt item identifier. |
+| `itemNumber` | string or `null` | Extracted or corrected item number. |
+| `name` | string or `null` | Extracted or corrected item name. |
+| `totalPrice` | number or `null` | Item total price. |
+| `quantity` | number or `null` | Optional item quantity. |
+| `category` | string or `null` | Item category. One of `FOOD`, `HOUSEHOLD`, `RESTAURANT`, `HEALTH`, `ELECTRONICS`, `OTHER`. |
+
+### `validationWarnings[]`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `code` | string | Stable warning code. |
+| `message` | string | Human-readable warning message. |
 
 ### `extraction`
 
@@ -259,10 +473,16 @@ Current error categories:
   - missing upload field
   - invalid request parameters
   - invalid pagination parameters
+  - invalid merchant create body
+  - invalid receipt item update body
 - `409 Conflict`
+  - merchant delete requested while receipts still reference the merchant
+  - merchant assignment requested for a receipt that already has a merchant
   - extraction restart requested while another extraction is active
 - `404 Not Found`
+  - missing merchant
   - missing receipt
+  - missing receipt item
   - missing original image for a known receipt
 - `415 Unsupported Media Type`
   - unsupported upload MIME type
@@ -289,6 +509,7 @@ The backend currently follows these rules:
 - uploaded receipts become persisted backend entities immediately
 - original uploaded images are stored on the local filesystem
 - image metadata and raw OCR payloads are stored in SQLite
+- structured receipt items and receipt item validation warnings are stored in SQLite
 - the backend calls `ris_extract` through a dedicated client in `ris_core`
 - the backend generates an extraction `requestId` before calling `ris_extract`
 - `POST /v1/receipts` returns immediately after the receipt is stored and queued for extraction
@@ -301,6 +522,8 @@ The backend currently follows these rules:
 - the backend processes extraction jobs asynchronously in the background
 - when a new extraction is started for an existing receipt, any previous extraction payload is deleted immediately
 - `extraction` remains `null` until the current extraction finishes successfully
+- successful extraction persists structured line items as editable receipt items
+- receipt item validation currently emits `ITEM_TOTAL_MISMATCH` when item totals differ from the extracted final amount after cent-based comparison
 - the backend retries receipts in status `pending` or `processing` after restart
 - background extraction jobs ignore receipts that were deleted before processing finished
 - the backend expects the extraction response `requestId` to exactly match the generated request id
@@ -313,17 +536,23 @@ The current backend implementation intentionally focuses on the first vertical s
 
 Implemented now:
 - `GET /healthz`
+- `POST /v1/merchants`
+- `GET /v1/merchants`
+- `GET /v1/merchants/{merchantId}`
+- `DELETE /v1/merchants/{merchantId}`
 - `POST /v1/receipts`
 - `GET /v1/receipts`
 - `GET /v1/receipts/{receiptId}`
+- `POST /v1/receipts/{receiptId}/merchant`
+- `PATCH /v1/receipts/{receiptId}/items/{itemId}`
 - `GET /v1/receipts/{receiptId}/image`
 - `POST /v1/receipts/{receiptId}/extractions`
 - `DELETE /v1/receipts/{receiptId}`
 - image persistence
 - OCR persistence
+- structured line-item persistence
+- manual receipt-item correction
 - typed exception handling
 
 Not implemented yet:
-- `PATCH /v1/receipts/{receiptId}/items/{itemId}`
-- structured line-item persistence
-- manual category correction
+- receipt-item creation and deletion

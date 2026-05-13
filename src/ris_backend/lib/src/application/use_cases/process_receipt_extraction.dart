@@ -30,7 +30,8 @@ class ProcessReceiptExtractionUseCase {
     }
     final requestId = receipt.extractRequestId;
 
-    if (receipt.status == ReceiptStatus.processed && receipt.extraction != null) {
+    if (receipt.status == ReceiptStatus.processed &&
+        receipt.extraction != null) {
       return;
     }
 
@@ -40,7 +41,9 @@ class ProcessReceiptExtractionUseCase {
     );
 
     try {
-      final imageFile = File(path.join(_dataDirectoryPath, receipt.image.storagePath));
+      final imageFile = File(
+        path.join(_dataDirectoryPath, receipt.image.storagePath),
+      );
       final bytes = await imageFile.readAsBytes();
       final extraction = await _extractService.extractReceipt(
         requestId: requestId,

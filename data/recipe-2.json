@@ -5258,8 +5258,49 @@
         ]
     },
     "structured": {
-        "lineItems": null,
-        "merchantInfo": null,
+        "lineItems": {
+            "total_amount": 43.72,
+            "currency": "EUR",
+            "items": [
+                {
+                    "name": "MS Stopfen",
+                    "total_price": 4.39,
+                    "category": "HOUSEHOLD",
+                    "item_number": "4007111021609",
+                    "quantity": 1
+                },
+                {
+                    "name": "Rothenberger Industr",
+                    "total_price": 2.79,
+                    "category": "HOUSEHOLD",
+                    "item_number": "4004625387269",
+                    "quantity": 1
+                },
+                {
+                    "name": "WD-40 Multifunktions",
+                    "total_price": 9.99,
+                    "category": "HOUSEHOLD",
+                    "item_number": "5032227496620",
+                    "quantity": 1
+                },
+                {
+                    "name": "LOETLAMPE 1750 C",
+                    "total_price": 26.99,
+                    "category": "HOUSEHOLD",
+                    "item_number": "4004625359303",
+                    "quantity": 1
+                }
+            ]
+        },
+        "merchantInfo": {
+            "merchant_name": "Baumarkt Hohenstadt GmbH & Co.KG",
+            "city": "Hohenstadt",
+            "post_code": "91224",
+            "street": "Happurger Straße 17",
+            "ustid": "DE132809018",
+            "tse_serial_number": null,
+            "datetime": "2025-07-02T13:18:13"
+        },
         "qrcode_tse_data": {
             "raw_text": "V0;000000001750336203-53R0511374;Kassenbeleg-V1;Beleg^43.72_0.00_0.00_0.00_0.00^43.72:Unbar;433860;994162;2025-07-02T11:18:39.000Z;2025-07-02T11:18:39.000Z;ecdsa-plain-SHA384;unixTime;ZVXKlqcH7CJZPnkmZg4KmFKe6lM8HgNvUWkgeCJuzCw/yR5HAylLbyXsjXK7zoiZH8w4I7AELj+v5GYCDp5meV3mX31eGvgu2MFIkhkTv+W1W49lyKMWGDPxfY+YmwTo;BETIHKNDSWcH9yNq7UKUUeeY19k5R0RyTxbL6q7mh7DfPV185OgqDRKI8b4iJVDYBC47dPDuW95wLIIP4EuraZA7KWqHnxPpOkaz9iZ73PMMLPjRmkMKlmubWZ9BW7KaNQ==",
             "format": "kassensichv-v0",
