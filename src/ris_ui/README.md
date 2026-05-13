@@ -1,3 +1,2 @@
 # ris_ui
-
-A new Flutter project.
+Flutter application for receipt and merchant management.

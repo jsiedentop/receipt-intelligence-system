@@ -1,0 +1,46 @@
+services:
+  ris_extract:
+    build:
+      context: ./src/ris_extract
+      dockerfile: Dockerfile
+    container_name: ris_extract
+    ports:
+      - "8081:8081"
+    #environment:
+    #  OPEN_AI_TOKEN: ${OPEN_AI_TOKEN:-}
+    env_file: ./.env
+    volumes:
+      - ./storage/extract:/root/.paddlex
+    restart: unless-stopped
+
+  ris_backend:
+    build:
+      context: .
+      dockerfile: ./src/ris_backend/Dockerfile
+    container_name: ris_backend
+    depends_on:
+      - ris_extract
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      RIS_BACKEND_DATA_DIR: /data/backend
+      RIS_BACKEND_DB_PATH: ris_backend.sqlite
+      RIS_BACKEND_RECEIPTS_IMAGE_DIR: receipts
+      RIS_EXTRACT_BASE_URL: http://ris_extract:8081
+    volumes:
+      - ./storage/backend:/data/backend
+    restart: unless-stopped
+
+  ris_ui:
+    build:
+      context: .
+      dockerfile: ./src/ris_ui/Dockerfile
+      args:
+        RIS_UI_BACKEND_BASE_URL: http://localhost:8080
+    container_name: ris_ui
+    depends_on:
+      - ris_backend
+    ports:
+      - "8082:80"
+    restart: unless-stopped

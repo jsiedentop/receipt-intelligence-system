@@ -8,6 +8,7 @@ class BackendConfig {
     required this.dataDirectoryPath,
     required this.databasePath,
     required this.receiptsImageDirectoryPath,
+    required this.allowedCorsOrigin,
     required this.extractBaseUri,
   });
 
@@ -15,6 +16,7 @@ class BackendConfig {
   final String dataDirectoryPath;
   final String databasePath;
   final String receiptsImageDirectoryPath;
+  final String allowedCorsOrigin;
   final Uri extractBaseUri;
 
   factory BackendConfig.fromEnvironment(Map<String, String> environment) {
@@ -32,6 +34,10 @@ class BackendConfig {
       throw ConfigurationException('Invalid PORT value: $portValue.');
     }
 
+    final allowedCorsOrigin =
+        environment['RIS_BACKEND_ALLOWED_CORS_ORIGIN'] ??
+        'http://localhost:8082';
+
     final extractBaseUrl =
         environment['RIS_EXTRACT_BASE_URL'] ?? 'http://127.0.0.1:8081';
     final extractBaseUri = Uri.tryParse(extractBaseUrl);
@@ -44,11 +50,12 @@ class BackendConfig {
     }
 
     return BackendConfig(
-      port: port,
-      dataDirectoryPath: dataDirectoryPath,
-      databasePath: databasePath,
-      receiptsImageDirectoryPath: receiptsImageDirectoryPath,
-      extractBaseUri: extractBaseUri,
-    );
+        port: port,
+        dataDirectoryPath: dataDirectoryPath,
+        databasePath: databasePath,
+        receiptsImageDirectoryPath: receiptsImageDirectoryPath,
+        allowedCorsOrigin: allowedCorsOrigin,
+        extractBaseUri: extractBaseUri,
+      );
   }
 }

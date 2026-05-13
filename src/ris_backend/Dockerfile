@@ -3,18 +3,20 @@ FROM dart:stable AS build
 
 # Resolve app dependencies.
 WORKDIR /app
-COPY pubspec.* ./
+COPY src/ris_core /app/src/ris_core
+COPY src/ris_backend /app/src/ris_backend
+WORKDIR /app/src/ris_backend
 RUN dart pub get
 
 # Copy app source code (except anything in .dockerignore) and AOT compile app.
-COPY . .
 RUN dart build cli --target bin/server.dart -o output
 
-# Build minimal serving image from AOT-compiled `/server`
-# and the pre-built AOT-runtime in the `/runtime/` directory of the base image.
-FROM scratch
-COPY --from=build /runtime/ /
-COPY --from=build /app/output/bundle/ /app/
+# Build serving image from the stable Dart runtime image.
+FROM dart:stable
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libsqlite3-dev \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=build /app/src/ris_backend/output/bundle/ /app/
 
 # Start server.
 EXPOSE 8080

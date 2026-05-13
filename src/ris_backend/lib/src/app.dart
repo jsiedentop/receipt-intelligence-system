@@ -146,5 +146,6 @@ Future<Handler> buildHandler(BackendConfig config) async {
   return buildRouter(
     receiptHandler: receiptHandler,
     merchantHandler: merchantHandler,
+    allowedCorsOrigin: config.allowedCorsOrigin,
   );
 }

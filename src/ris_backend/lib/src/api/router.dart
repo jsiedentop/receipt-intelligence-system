@@ -10,9 +10,11 @@ import 'handlers/receipt_handler.dart';
 Handler buildRouter({
   required ReceiptHandler receiptHandler,
   required MerchantHandler merchantHandler,
+  required String allowedCorsOrigin,
 }) {
   final router = Router()
     ..get('/healthz', _healthHandler)
+    ..options('/<ignored|.*>', _optionsHandler)
     ..get('/v1/merchants', merchantHandler.list)
     ..post('/v1/merchants', merchantHandler.create)
     ..get('/v1/merchants/<merchantId>', merchantHandler.getById)
@@ -45,7 +47,10 @@ Handler buildRouter({
     )
     ..delete('/v1/receipts/<receiptId>', receiptHandler.delete);
 
-  return Pipeline().addMiddleware(logRequests()).addHandler(router.call);
+  return Pipeline()
+      .addMiddleware(logRequests())
+      .addMiddleware(_corsMiddleware(allowedCorsOrigin))
+      .addHandler(router.call);
 }
 
 Response _healthHandler(Request request) {
@@ -54,4 +59,45 @@ Response _healthHandler(Request request) {
     body: jsonEncode({'status': 'ok'}),
     headers: {'content-type': 'application/json'},
   );
+}
+
+Response _optionsHandler(Request request) {
+  return Response(HttpStatus.noContent);
+}
+
+Middleware _corsMiddleware(String allowedCorsOrigin) {
+  return (innerHandler) {
+    return (request) async {
+      final response = await innerHandler(request);
+      final origin = request.headers['origin'];
+      if (origin != allowedCorsOrigin) {
+        return response;
+      }
+
+      return response.change(headers: {
+        ...response.headers,
+        'access-control-allow-origin': allowedCorsOrigin,
+        'access-control-allow-methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+        'access-control-allow-headers':
+            request.headers['access-control-request-headers'] ??
+            'origin, content-type, accept',
+        'access-control-allow-credentials': 'true',
+        'vary': _appendVaryHeader(response.headers['vary'], 'Origin'),
+      });
+    };
+  };
+}
+
+String _appendVaryHeader(String? currentValue, String newValue) {
+  if (currentValue == null || currentValue.isEmpty) {
+    return newValue;
+  }
+
+  final values = currentValue
+      .split(',')
+      .map((value) => value.trim())
+      .where((value) => value.isNotEmpty)
+      .toSet();
+  values.add(newValue);
+  return values.join(', ');
 }

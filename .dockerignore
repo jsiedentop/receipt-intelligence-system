@@ -1,0 +1,12 @@
+.git
+.gitignore
+.idea
+.vscode
+**/.dart_tool
+**/build
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/pubspec.lock
+**/.DS_Store
+data
