@@ -68,6 +68,10 @@ Detailed HTTP contracts live in:
 - Receipt item creation and deletion are not implemented yet.
 - Backend integration tests currently run against `ris_extract_mock`, not the real extractor.
 
+## What I Would Improve With More Time
+
+I would first improve the manual correction workflow in the UI, especially by supporting item deletion and creation and by making bulk editing faster through better keyboard-driven interactions. With more real-world test data, I would extend the automatic assignment logic for merchants and item categories, including learned per-merchant item classification based on item number and name. I would also evaluate additional extraction approaches for `ris_extract`, add support for multi-page receipts, and validate more carefully whether the current LLM-based approach is economically viable in production. For a production setting, I would further invest in auditability, UI robustness, and a more self-explanatory and consistent overall user experience.
+
 ## LLM Cost Note
 
 - Model: `gpt-5.4-nano`
