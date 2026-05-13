@@ -31,7 +31,7 @@ void main() {
         'RIS_EXTRACT_MOCK_DELAY_MS': '1200',
       },
     );
-    await extractProcess.stdout.first;
+    await _waitForProcessReady(extractProcess, 'extract mock');
 
     backendProcess = await Process.start(
       'dart',
@@ -42,7 +42,7 @@ void main() {
         'RIS_EXTRACT_BASE_URL': 'http://127.0.0.1:$extractPort',
       },
     );
-    await backendProcess.stdout.first;
+    await _waitForProcessReady(backendProcess, 'backend');
   });
 
   tearDown(() async {
@@ -126,6 +126,52 @@ void main() {
     expect(getResponse.statusCode, 200);
     expect(body['id'], merchantId);
     expect(body['name'], 'Aldi');
+    expect(body['matchProperties'], isEmpty);
+  });
+
+  test('merchant detail returns learned match properties and allows deleting one', () async {
+    final receipt = await _createProcessedReceipt(
+      backendBaseUri,
+      '../../data/receipt-1.png',
+    );
+    final receiptId = receipt['id'] as String;
+
+    final assignResponse = await http.post(
+      backendBaseUri.resolve('/v1/receipts/$receiptId/merchant'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'name': 'Lidl',
+        'street': 'Julius-Lossmann-Strasse 11',
+        'postCode': '90469',
+        'city': 'Nuernberg',
+        'taxId': 'DE814429027',
+      }),
+    );
+    final assignedBody = jsonDecode(assignResponse.body) as Map<String, dynamic>;
+    final merchantId = assignedBody['merchantId'] as String;
+
+    final merchantResponse = await http.get(
+      backendBaseUri.resolve('/v1/merchants/$merchantId'),
+    );
+    final merchantBody = jsonDecode(merchantResponse.body) as Map<String, dynamic>;
+    final matchProperties = merchantBody['matchProperties'] as List<dynamic>;
+    final propertyId = (matchProperties.first as Map<String, dynamic>)['id'] as int;
+
+    final deletePropertyResponse = await http.delete(
+      backendBaseUri.resolve(
+        '/v1/merchants/$merchantId/match-properties/$propertyId',
+      ),
+    );
+    final deletedBody =
+        jsonDecode(deletePropertyResponse.body) as Map<String, dynamic>;
+
+    expect(merchantResponse.statusCode, 200);
+    expect(matchProperties, isNotEmpty);
+    expect(deletePropertyResponse.statusCode, 200);
+    expect(
+      (deletedBody['matchProperties'] as List<dynamic>).length,
+      lessThan(matchProperties.length),
+    );
   });
 
   test('creates merchant for receipt and assigns relation', () async {
@@ -183,6 +229,193 @@ void main() {
 
     expect(assignResponse.statusCode, 201);
     expect((assignedBody['merchant'] as Map<String, dynamic>)['taxId'], isNull);
+  });
+
+  test('auto-assigns merchant after processing when there is one clear match', () async {
+    final firstReceipt = await _createProcessedReceipt(
+      backendBaseUri,
+      '../../data/receipt-1.png',
+    );
+    final firstReceiptId = firstReceipt['id'] as String;
+
+    await http.post(
+      backendBaseUri.resolve('/v1/receipts/$firstReceiptId/merchant'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'name': 'Lidl',
+        'street': 'Julius-Lossmann-Strasse 11',
+        'postCode': '90469',
+        'city': 'Nuernberg',
+        'taxId': 'DE814429027',
+      }),
+    );
+
+    final secondReceipt = await _createProcessedReceipt(
+      backendBaseUri,
+      '../../data/receipt-1.png',
+    );
+
+    expect(secondReceipt['merchantId'], isNotNull);
+    expect(secondReceipt['merchantAssignedType'], 'auto');
+    expect(
+      (secondReceipt['merchant'] as Map<String, dynamic>)['name'],
+      'Lidl',
+    );
+  });
+
+  test('lists merchant candidates for a receipt sorted by score', () async {
+    final learnedReceipt = await _createProcessedReceipt(
+      backendBaseUri,
+      '../../data/receipt-1.png',
+    );
+    final learnedReceiptId = learnedReceipt['id'] as String;
+
+    await http.post(
+      backendBaseUri.resolve('/v1/receipts/$learnedReceiptId/merchant'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'name': 'Lidl',
+        'street': 'Julius-Lossmann-Strasse 11',
+        'postCode': '90469',
+        'city': 'Nuernberg',
+        'taxId': 'DE814429027',
+      }),
+    );
+
+    final candidateReceipt = await _createProcessedReceipt(
+      backendBaseUri,
+      '../../data/receipt-1.png',
+    );
+    final candidateReceiptId = candidateReceipt['id'] as String;
+
+    final response = await http.get(
+      backendBaseUri.resolve(
+        '/v1/receipts/$candidateReceiptId/merchant-candidates',
+      ),
+    );
+    final body = jsonDecode(response.body) as List<dynamic>;
+
+    expect(response.statusCode, 200);
+    expect(body, isNotEmpty);
+    expect((body.first as Map<String, dynamic>)['score'], greaterThan(0.0));
+    expect((body.first as Map<String, dynamic>)['score'], lessThanOrEqualTo(1.0));
+  });
+
+  test('does not auto-assign merchant for a weak city-only match', () async {
+    final learnedReceipt = await _createProcessedReceipt(
+      backendBaseUri,
+      '../../data/receipt-1.png',
+    );
+    final learnedReceiptId = learnedReceipt['id'] as String;
+
+    await http.post(
+      backendBaseUri.resolve('/v1/receipts/$learnedReceiptId/merchant'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'name': 'Lidl',
+        'street': 'Julius-Lossmann-Strasse 11',
+        'postCode': '90469',
+        'city': 'Nuernberg',
+        'taxId': 'DE814429027',
+      }),
+    );
+
+    final weakMatchReceipt = await _createProcessedReceipt(
+      backendBaseUri,
+      '../../data/receipt-3.png',
+    );
+    final weakMatchReceiptId = weakMatchReceipt['id'] as String;
+
+    expect(weakMatchReceipt['merchantId'], isNull);
+    expect(weakMatchReceipt['merchantAssignedType'], 'unmatched');
+
+    final candidatesResponse = await http.get(
+      backendBaseUri.resolve(
+        '/v1/receipts/$weakMatchReceiptId/merchant-candidates',
+      ),
+    );
+    final candidatesBody = jsonDecode(candidatesResponse.body) as List<dynamic>;
+
+    expect(candidatesResponse.statusCode, 200);
+    expect(candidatesBody, hasLength(1));
+    expect(
+      (candidatesBody.first as Map<String, dynamic>)['score'],
+      closeTo(5 / 268, 0.0001),
+    );
+  });
+
+  test('assigns an existing merchant to an unmatched receipt', () async {
+    final merchantResponse = await http.post(
+      backendBaseUri.resolve('/v1/merchants'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'name': 'Lidl',
+        'street': 'Julius-Lossmann-Strasse 11',
+        'postCode': '90469',
+        'city': 'Nuernberg',
+        'taxId': 'DE814429027',
+      }),
+    );
+    final merchantBody = jsonDecode(merchantResponse.body) as Map<String, dynamic>;
+    final merchantId = merchantBody['id'] as String;
+
+    final receipt = await _createProcessedReceipt(
+      backendBaseUri,
+      '../../data/receipt-2.png',
+    );
+    final receiptId = receipt['id'] as String;
+
+    final clearAutoResponse = await http.delete(
+      backendBaseUri.resolve('/v1/receipts/$receiptId/merchant'),
+    );
+    expect(clearAutoResponse.statusCode, anyOf(200, 404));
+
+    final assignResponse = await http.put(
+      backendBaseUri.resolve('/v1/receipts/$receiptId/merchant'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({'merchantId': merchantId}),
+    );
+    final body = jsonDecode(assignResponse.body) as Map<String, dynamic>;
+
+    expect(assignResponse.statusCode, 200);
+    expect(body['merchantId'], merchantId);
+    expect(body['merchantAssignedType'], 'manual');
+  });
+
+  test('clears receipt merchant assignment without deleting merchant', () async {
+    final receipt = await _createProcessedReceipt(
+      backendBaseUri,
+      '../../data/receipt-1.png',
+    );
+    final receiptId = receipt['id'] as String;
+
+    final assignedResponse = await http.post(
+      backendBaseUri.resolve('/v1/receipts/$receiptId/merchant'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'name': 'Lidl',
+        'street': 'Julius-Lossmann-Strasse 11',
+        'postCode': '90469',
+        'city': 'Nuernberg',
+        'taxId': 'DE814429027',
+      }),
+    );
+    final assignedBody = jsonDecode(assignedResponse.body) as Map<String, dynamic>;
+    final merchantId = assignedBody['merchantId'] as String;
+
+    final clearResponse = await http.delete(
+      backendBaseUri.resolve('/v1/receipts/$receiptId/merchant'),
+    );
+    final clearBody = jsonDecode(clearResponse.body) as Map<String, dynamic>;
+    final merchantResponse = await http.get(
+      backendBaseUri.resolve('/v1/merchants/$merchantId'),
+    );
+
+    expect(clearResponse.statusCode, 200);
+    expect(clearBody['merchantId'], isNull);
+    expect(clearBody['merchant'], isNull);
+    expect(clearBody['merchantAssignedType'], 'unmatched');
+    expect(merchantResponse.statusCode, 200);
   });
 
   test('returns 409 when assigning a second merchant to receipt', () async {
@@ -861,4 +1094,24 @@ Future<http.Response> _uploadFile(
     );
 
   return http.Response.fromStream(await request.send());
+}
+
+Future<void> _waitForProcessReady(Process process, String name) async {
+  final stdoutFuture = process.stdout
+      .transform(utf8.decoder)
+      .transform(const LineSplitter())
+      .first;
+  final stderrFuture = process.stderr.transform(utf8.decoder).join();
+
+  final result = await Future.any<Object?>([
+    stdoutFuture,
+    process.exitCode,
+  ]);
+
+  if (result is int) {
+    final stderr = await stderrFuture;
+    throw StateError(
+      '$name exited before becoming ready. Exit code: $result. ${stderr.trim()}',
+    );
+  }
 }

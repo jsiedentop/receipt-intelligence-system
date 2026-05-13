@@ -1,6 +1,7 @@
 import 'package:ris_core/ris_core.dart';
 
 import '../../domain/exceptions/app_exceptions.dart';
+import '../../domain/models/merchant_match.dart';
 import '../../domain/models/merchant.dart';
 import '../../domain/models/receipt.dart';
 import '../../domain/repositories/merchant_repository.dart';
@@ -59,6 +60,11 @@ class CreateMerchantForReceiptUseCase {
     await _receiptRepository.assignMerchant(
       receiptId: receiptId,
       merchantId: merchant.id,
+      assignedType: MerchantAssignedType.manual,
+    );
+    await _receiptRepository.createMerchantMatchProperties(
+      merchantId: merchant.id,
+      properties: extractMerchantMatchProperties(receipt.extraction),
     );
     return _receiptRepository.getById(receiptId);
   }

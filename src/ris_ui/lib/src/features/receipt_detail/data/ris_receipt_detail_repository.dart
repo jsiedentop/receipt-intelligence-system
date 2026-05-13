@@ -13,6 +13,13 @@ class RisReceiptDetailRepository implements ReceiptDetailRepository {
   }
 
   @override
+  Future<List<MerchantCandidateDto>> getReceiptMerchantCandidates(
+    ReceiptId receiptId,
+  ) {
+    return _backendClient.getReceiptMerchantCandidates(receiptId);
+  }
+
+  @override
   Future<ReceiptResponseDto> createMerchantForReceipt({
     required ReceiptId receiptId,
     required String name,
@@ -29,6 +36,22 @@ class RisReceiptDetailRepository implements ReceiptDetailRepository {
       city: city,
       taxId: taxId,
     );
+  }
+
+  @override
+  Future<ReceiptResponseDto> assignMerchantToReceipt({
+    required ReceiptId receiptId,
+    required MerchantId merchantId,
+  }) {
+    return _backendClient.assignMerchantToReceipt(
+      receiptId: receiptId,
+      merchantId: merchantId,
+    );
+  }
+
+  @override
+  Future<ReceiptResponseDto> clearReceiptMerchant(ReceiptId receiptId) {
+    return _backendClient.clearReceiptMerchant(receiptId);
   }
 
   @override

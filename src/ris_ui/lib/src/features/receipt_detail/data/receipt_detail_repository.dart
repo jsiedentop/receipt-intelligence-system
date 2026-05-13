@@ -5,6 +5,10 @@ abstract interface class ReceiptDetailRepository {
 
   Future<BackendReceiptImage> getReceiptImage(ReceiptId receiptId);
 
+  Future<List<MerchantCandidateDto>> getReceiptMerchantCandidates(
+    ReceiptId receiptId,
+  );
+
   Future<ReceiptResponseDto> createMerchantForReceipt({
     required ReceiptId receiptId,
     required String name,
@@ -13,6 +17,13 @@ abstract interface class ReceiptDetailRepository {
     required String city,
     required String? taxId,
   });
+
+  Future<ReceiptResponseDto> assignMerchantToReceipt({
+    required ReceiptId receiptId,
+    required MerchantId merchantId,
+  });
+
+  Future<ReceiptResponseDto> clearReceiptMerchant(ReceiptId receiptId);
 
   Future<ReceiptResponseDto> updateReceiptItem({
     required ReceiptId receiptId,

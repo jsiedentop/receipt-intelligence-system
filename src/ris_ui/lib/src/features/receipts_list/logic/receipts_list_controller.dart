@@ -45,7 +45,9 @@ class ReceiptsListController extends ChangeNotifier {
       _errorMessage = _asMessage(error);
     } finally {
       _isInitialLoading = false;
-      notifyListeners();
+      if (hasListeners) {
+        notifyListeners();
+      }
     }
   }
 
@@ -77,7 +79,9 @@ class ReceiptsListController extends ChangeNotifier {
       _errorMessage = _asMessage(error);
     } finally {
       _isLoadingMore = false;
-      notifyListeners();
+      if (hasListeners) {
+        notifyListeners();
+      }
     }
   }
 

@@ -20,6 +20,10 @@ class ReceiptDetailController extends ChangeNotifier {
   ReceiptResponseDto? _receipt;
   ReceiptResponseDto? get receipt => _receipt;
 
+  List<MerchantCandidateDto> _merchantCandidates =
+      const <MerchantCandidateDto>[];
+  List<MerchantCandidateDto> get merchantCandidates => _merchantCandidates;
+
   BackendReceiptImage? _image;
   BackendReceiptImage? get image => _image;
 
@@ -34,6 +38,12 @@ class ReceiptDetailController extends ChangeNotifier {
 
   bool _isSavingMerchant = false;
   bool get isSavingMerchant => _isSavingMerchant;
+
+  bool _isLoadingMerchantCandidates = false;
+  bool get isLoadingMerchantCandidates => _isLoadingMerchantCandidates;
+
+  bool _isClearingMerchant = false;
+  bool get isClearingMerchant => _isClearingMerchant;
 
   final Set<String> _updatingItemIds = <String>{};
   bool isUpdatingItem(String itemId) => _updatingItemIds.contains(itemId);
@@ -77,6 +87,7 @@ class ReceiptDetailController extends ChangeNotifier {
       final image = await _repository.getReceiptImage(_receiptId);
       _receipt = receipt;
       _image = image;
+      _merchantCandidates = await _loadMerchantCandidates(receipt);
       _syncOverlayMode();
       _configurePolling(receipt.status);
     } catch (error) {
@@ -86,7 +97,9 @@ class ReceiptDetailController extends ChangeNotifier {
       );
     } finally {
       _isLoading = false;
-      notifyListeners();
+      if (hasListeners) {
+        notifyListeners();
+      }
     }
   }
 
@@ -94,9 +107,12 @@ class ReceiptDetailController extends ChangeNotifier {
     try {
       final receipt = await _repository.getReceiptById(_receiptId);
       _receipt = receipt;
+      _merchantCandidates = await _loadMerchantCandidates(receipt);
       _syncOverlayMode();
       _configurePolling(receipt.status);
-      notifyListeners();
+      if (hasListeners) {
+        notifyListeners();
+      }
     } catch (_) {
       _configurePolling('failed');
     }
@@ -109,6 +125,7 @@ class ReceiptDetailController extends ChangeNotifier {
 
     try {
       _receipt = await _repository.restartReceiptExtraction(_receiptId);
+      _merchantCandidates = await _loadMerchantCandidates(_receipt!);
       _syncOverlayMode();
       _configurePolling(_receipt!.status);
     } catch (error) {
@@ -118,7 +135,9 @@ class ReceiptDetailController extends ChangeNotifier {
       );
     } finally {
       _isRestarting = false;
-      notifyListeners();
+      if (hasListeners) {
+        notifyListeners();
+      }
     }
   }
 
@@ -133,7 +152,9 @@ class ReceiptDetailController extends ChangeNotifier {
     } catch (error) {
       _errorMessage = _asMessage(error, fallback: 'Failed to delete receipt.');
       _isDeleting = false;
-      notifyListeners();
+      if (hasListeners) {
+        notifyListeners();
+      }
       rethrow;
     }
   }
@@ -158,6 +179,7 @@ class ReceiptDetailController extends ChangeNotifier {
         city: city,
         taxId: taxId,
       );
+      _merchantCandidates = await _loadMerchantCandidates(_receipt!);
     } catch (error) {
       _errorMessage = _asMessage(
         error,
@@ -166,7 +188,72 @@ class ReceiptDetailController extends ChangeNotifier {
       rethrow;
     } finally {
       _isSavingMerchant = false;
-      notifyListeners();
+      if (hasListeners) {
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> assignMerchantToReceipt(MerchantId merchantId) async {
+    _isSavingMerchant = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      _receipt = await _repository.assignMerchantToReceipt(
+        receiptId: _receiptId,
+        merchantId: merchantId,
+      );
+      _merchantCandidates = await _loadMerchantCandidates(_receipt!);
+    } catch (error) {
+      _errorMessage = _asMessage(error, fallback: 'Failed to assign merchant.');
+      rethrow;
+    } finally {
+      _isSavingMerchant = false;
+      if (hasListeners) {
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> clearMerchantAssignment() async {
+    _isClearingMerchant = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      _receipt = await _repository.clearReceiptMerchant(_receiptId);
+      _merchantCandidates = await _loadMerchantCandidates(_receipt!);
+    } catch (error) {
+      _errorMessage = _asMessage(
+        error,
+        fallback: 'Failed to clear merchant assignment.',
+      );
+      rethrow;
+    } finally {
+      _isClearingMerchant = false;
+      if (hasListeners) {
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<List<MerchantCandidateDto>> _loadMerchantCandidates(
+    ReceiptResponseDto receipt,
+  ) async {
+    if (receipt.extraction == null) {
+      return const <MerchantCandidateDto>[];
+    }
+
+    _isLoadingMerchantCandidates = true;
+    notifyListeners();
+    try {
+      return await _repository.getReceiptMerchantCandidates(_receiptId);
+    } finally {
+      _isLoadingMerchantCandidates = false;
+      if (hasListeners) {
+        notifyListeners();
+      }
     }
   }
 
@@ -200,7 +287,9 @@ class ReceiptDetailController extends ChangeNotifier {
       rethrow;
     } finally {
       _updatingItemIds.remove(item.id);
-      notifyListeners();
+      if (hasListeners) {
+        notifyListeners();
+      }
     }
   }
 

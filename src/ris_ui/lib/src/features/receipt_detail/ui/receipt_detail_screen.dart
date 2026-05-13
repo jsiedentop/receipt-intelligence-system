@@ -180,7 +180,11 @@ class _ReceiptDetailView extends StatelessWidget {
                           ],
                           ReceiptMerchantCard(
                             receipt: controller.receipt!,
+                            candidates: controller.merchantCandidates,
                             isSaving: controller.isSavingMerchant,
+                            isLoadingCandidates:
+                                controller.isLoadingMerchantCandidates,
+                            isClearing: controller.isClearingMerchant,
                             onSave:
                                 ({
                                   required name,
@@ -197,6 +201,9 @@ class _ReceiptDetailView extends StatelessWidget {
                                     taxId: taxId,
                                   );
                                 },
+                            onAssignExisting: controller.assignMerchantToReceipt,
+                            onClearAssignment:
+                                controller.clearMerchantAssignment,
                           ),
                           const SizedBox(height: 16),
                           ReceiptItemsCard(

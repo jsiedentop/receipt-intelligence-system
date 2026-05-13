@@ -6,10 +6,14 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
 import '../mappers/receipt_response_mapper.dart';
+import '../mappers/merchant_candidate_response_mapper.dart';
+import '../../application/use_cases/assign_merchant_to_receipt.dart';
+import '../../application/use_cases/clear_receipt_merchant_assignment.dart';
 import '../../application/use_cases/create_merchant.dart';
 import '../../application/use_cases/create_receipt.dart';
 import '../../application/use_cases/create_merchant_for_receipt.dart';
 import '../../application/use_cases/delete_receipt.dart';
+import '../../application/use_cases/find_receipt_merchant_candidates.dart';
 import '../../application/use_cases/get_receipt.dart';
 import '../../application/use_cases/get_receipt_image.dart';
 import '../../application/use_cases/list_receipts.dart';
@@ -21,9 +25,12 @@ import '../http/multipart_request_parser.dart';
 
 class ReceiptHandler {
   ReceiptHandler({
+    required this.assignMerchantToReceiptUseCase,
+    required this.clearReceiptMerchantAssignmentUseCase,
     required this.createReceiptUseCase,
     required this.createMerchantForReceiptUseCase,
     required this.deleteReceiptUseCase,
+    required this.findReceiptMerchantCandidatesUseCase,
     required this.getReceiptUseCase,
     required this.getReceiptImageUseCase,
     required this.listReceiptsUseCase,
@@ -32,14 +39,21 @@ class ReceiptHandler {
   });
 
   final CreateReceiptUseCase createReceiptUseCase;
+  final AssignMerchantToReceiptUseCase assignMerchantToReceiptUseCase;
+  final ClearReceiptMerchantAssignmentUseCase
+      clearReceiptMerchantAssignmentUseCase;
   final CreateMerchantForReceiptUseCase createMerchantForReceiptUseCase;
   final DeleteReceiptUseCase deleteReceiptUseCase;
+  final FindReceiptMerchantCandidatesUseCase
+      findReceiptMerchantCandidatesUseCase;
   final GetReceiptUseCase getReceiptUseCase;
   final GetReceiptImageUseCase getReceiptImageUseCase;
   final ListReceiptsUseCase listReceiptsUseCase;
   final RestartReceiptExtractionUseCase restartReceiptExtractionUseCase;
   final UpdateReceiptItemUseCase updateReceiptItemUseCase;
   final HttpErrorMapper _errorMapper = HttpErrorMapper();
+  final MerchantCandidateResponseMapper _merchantCandidateResponseMapper =
+      const MerchantCandidateResponseMapper();
   final ReceiptResponseMapper _receiptResponseMapper =
       const ReceiptResponseMapper();
 
@@ -194,6 +208,78 @@ class ReceiptHandler {
       return Response(
         HttpStatus.created,
         body: jsonEncode(responseDto.toJson()),
+        headers: {'content-type': 'application/json'},
+      );
+    } on AppException catch (error) {
+      return _errorMapper.map(error);
+    } catch (_) {
+      return _errorMapper.internalError();
+    }
+  }
+
+  Future<Response> listMerchantCandidates(Request request) async {
+    try {
+      final receiptId = request.params['receiptId'];
+      if (receiptId == null || receiptId.isEmpty) {
+        throw ValidationException('Missing receipt id.');
+      }
+
+      final candidates = await findReceiptMerchantCandidatesUseCase.execute(
+        ReceiptId(receiptId),
+      );
+      final responseDtos = candidates
+          .map(_merchantCandidateResponseMapper.toDto)
+          .map((candidate) => candidate.toJson())
+          .toList(growable: false);
+
+      return Response.ok(
+        jsonEncode(responseDtos),
+        headers: {'content-type': 'application/json'},
+      );
+    } on AppException catch (error) {
+      return _errorMapper.map(error);
+    } catch (_) {
+      return _errorMapper.internalError();
+    }
+  }
+
+  Future<Response> assignMerchant(Request request) async {
+    try {
+      final receiptId = request.params['receiptId'];
+      if (receiptId == null || receiptId.isEmpty) {
+        throw ValidationException('Missing receipt id.');
+      }
+
+      final payload = await _parseJsonBody(request);
+      final receipt = await assignMerchantToReceiptUseCase.execute(
+        receiptId: ReceiptId(receiptId),
+        merchantId: MerchantId(_readRequiredString(payload, 'merchantId')),
+      );
+      final responseDto = _receiptResponseMapper.toDto(receipt);
+      return Response.ok(
+        jsonEncode(responseDto.toJson()),
+        headers: {'content-type': 'application/json'},
+      );
+    } on AppException catch (error) {
+      return _errorMapper.map(error);
+    } catch (_) {
+      return _errorMapper.internalError();
+    }
+  }
+
+  Future<Response> clearMerchantAssignment(Request request) async {
+    try {
+      final receiptId = request.params['receiptId'];
+      if (receiptId == null || receiptId.isEmpty) {
+        throw ValidationException('Missing receipt id.');
+      }
+
+      final receipt = await clearReceiptMerchantAssignmentUseCase.execute(
+        ReceiptId(receiptId),
+      );
+      final responseDto = _receiptResponseMapper.toDto(receipt);
+      return Response.ok(
+        jsonEncode(responseDto.toJson()),
         headers: {'content-type': 'application/json'},
       );
     } on AppException catch (error) {

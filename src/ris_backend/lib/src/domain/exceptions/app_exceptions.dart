@@ -56,6 +56,10 @@ class ReceiptMerchantConflictException extends ConflictException {
   const ReceiptMerchantConflictException(super.message, {super.cause});
 }
 
+class ReceiptMerchantAssignmentNotFoundException extends NotFoundException {
+  const ReceiptMerchantAssignmentNotFoundException(super.message, {super.cause});
+}
+
 class ConfigurationException extends ServerException {
   const ConfigurationException(super.message, {super.cause});
 }

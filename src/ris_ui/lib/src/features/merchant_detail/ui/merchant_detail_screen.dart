@@ -145,6 +145,91 @@ class _MerchantDetailView extends StatelessWidget {
                                   label: 'Tax ID',
                                   value: merchant.taxId!,
                                 ),
+                              const SizedBox(height: 20),
+                              Text(
+                                'Merchant match properties',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 12),
+                              if (merchant.matchProperties.isEmpty)
+                                const Text(
+                                  'No merchant match properties stored yet.',
+                                )
+                              else
+                                ...merchant.matchProperties.map(
+                                  (property) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.outlineVariant,
+                                        ),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  _labelForPropertyType(
+                                                    property.propertyType,
+                                                  ),
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .titleSmall,
+                                                ),
+                                              ),
+                                              IconButton(
+                                                tooltip: 'Delete match property',
+                                                onPressed: controller
+                                                        .isDeletingMatchProperty(
+                                                          property.id,
+                                                        )
+                                                    ? null
+                                                    : () async {
+                                                        await controller
+                                                            .deleteMatchProperty(
+                                                              property.id,
+                                                            );
+                                                      },
+                                                icon: controller
+                                                        .isDeletingMatchProperty(
+                                                          property.id,
+                                                        )
+                                                    ? const SizedBox(
+                                                        width: 18,
+                                                        height: 18,
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                        ),
+                                                      )
+                                                    : const Icon(
+                                                        Icons.delete_outline,
+                                                      ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          _MerchantField(
+                                            label: 'Raw value',
+                                            value: property.propertyValueRaw,
+                                          ),
+                                          _MerchantField(
+                                            label: 'Normalized value',
+                                            value: property.propertyValueNormalized,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -156,6 +241,18 @@ class _MerchantDetailView extends StatelessWidget {
       },
     );
   }
+}
+
+String _labelForPropertyType(String propertyType) {
+  return switch (propertyType) {
+    'merchant_name' => 'Merchant name',
+    'street' => 'Street',
+    'post_code' => 'Post code',
+    'city' => 'City',
+    'tax_id' => 'Tax ID',
+    'tse_serial_number' => 'TSE serial number',
+    _ => propertyType,
+  };
 }
 
 class _MerchantField extends StatelessWidget {

@@ -7,19 +7,23 @@ import '../../domain/exceptions/app_exceptions.dart';
 import '../../domain/models/receipt.dart';
 import '../../domain/repositories/receipt_repository.dart';
 import '../../domain/services/extract_service.dart';
+import 'auto_assign_receipt_merchant.dart';
 
 class ProcessReceiptExtractionUseCase {
   const ProcessReceiptExtractionUseCase({
     required ReceiptRepository receiptRepository,
     required ExtractService extractService,
     required String dataDirectoryPath,
+    required AutoAssignReceiptMerchantUseCase autoAssignReceiptMerchantUseCase,
   }) : _receiptRepository = receiptRepository,
        _extractService = extractService,
-       _dataDirectoryPath = dataDirectoryPath;
+       _dataDirectoryPath = dataDirectoryPath,
+       _autoAssignReceiptMerchantUseCase = autoAssignReceiptMerchantUseCase;
 
   final ReceiptRepository _receiptRepository;
   final ExtractService _extractService;
   final String _dataDirectoryPath;
+  final AutoAssignReceiptMerchantUseCase _autoAssignReceiptMerchantUseCase;
 
   Future<void> execute(ReceiptId receiptId) async {
     Receipt receipt;
@@ -56,6 +60,7 @@ class ProcessReceiptExtractionUseCase {
         requestId: requestId,
         extraction: extraction,
       );
+      await _autoAssignReceiptMerchantUseCase.execute(receiptId);
     } on ReceiptNotFoundException {
       return;
     } catch (_) {

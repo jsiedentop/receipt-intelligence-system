@@ -13,6 +13,16 @@ class MerchantResponseMapper {
       postCode: merchant.postCode,
       city: merchant.city,
       taxId: merchant.taxId,
+      matchProperties: merchant.matchProperties
+          .map(
+            (property) => MerchantMatchPropertyDto(
+              id: property.id,
+              propertyType: property.type.apiValue,
+              propertyValueRaw: property.rawValue,
+              propertyValueNormalized: property.normalizedValue,
+            ),
+          )
+          .toList(growable: false),
     );
   }
 }

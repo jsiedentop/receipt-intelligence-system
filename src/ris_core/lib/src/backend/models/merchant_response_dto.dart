@@ -1,4 +1,5 @@
 import '../../ids/merchant_id.dart';
+import 'merchant_match_property_dto.dart';
 
 class MerchantResponseDto {
   const MerchantResponseDto({
@@ -8,6 +9,7 @@ class MerchantResponseDto {
     required this.postCode,
     required this.city,
     required this.taxId,
+    required this.matchProperties,
   });
 
   final MerchantId id;
@@ -16,6 +18,7 @@ class MerchantResponseDto {
   final String postCode;
   final String city;
   final String? taxId;
+  final List<MerchantMatchPropertyDto> matchProperties;
 
   factory MerchantResponseDto.fromJson(Map<String, dynamic> json) {
     return MerchantResponseDto(
@@ -25,6 +28,13 @@ class MerchantResponseDto {
       postCode: json['postCode'] as String,
       city: json['city'] as String,
       taxId: json['taxId'] as String?,
+      matchProperties: (json['matchProperties'] as List? ?? const <Object?>[])
+          .map(
+            (item) => MerchantMatchPropertyDto.fromJson(
+              (item as Map).cast<String, dynamic>(),
+            ),
+          )
+          .toList(growable: false),
     );
   }
 
@@ -36,6 +46,7 @@ class MerchantResponseDto {
       'postCode': postCode,
       'city': city,
       'taxId': taxId,
+      'matchProperties': matchProperties.map((item) => item.toJson()).toList(),
     };
   }
 }

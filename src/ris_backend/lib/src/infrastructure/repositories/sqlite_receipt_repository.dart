@@ -6,6 +6,7 @@ import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 import '../../application/use_cases/receipt_item_validation.dart';
 import '../../domain/exceptions/app_exceptions.dart';
+import '../../domain/models/merchant_match.dart';
 import '../../domain/models/merchant.dart';
 import '../../domain/models/receipt.dart';
 import '../../domain/repositories/receipt_repository.dart';
@@ -20,13 +21,24 @@ class SqliteReceiptRepository implements ReceiptRepository {
     try {
       _database.execute('BEGIN;');
       _database.execute(
-        'INSERT INTO receipts (id, created_at, status, extract_request_id, merchant_id, items_currency) VALUES (?, ?, ?, ?, ?, ?);',
+        '''
+        INSERT INTO receipts (
+          id,
+          created_at,
+          status,
+          extract_request_id,
+          merchant_id,
+          merchant_assigned_type,
+          items_currency
+        ) VALUES (?, ?, ?, ?, ?, ?, ?);
+        ''',
         [
           receipt.id.value,
           receipt.createdAt.toIso8601String(),
           receipt.status.name,
           receipt.extractRequestId.value,
           receipt.merchantId?.value,
+          receipt.merchantAssignedType?.name,
           receipt.itemsCurrency,
         ],
       );
@@ -65,6 +77,97 @@ class SqliteReceiptRepository implements ReceiptRepository {
   }
 
   @override
+  Future<void> createMerchantMatchProperties({
+    required MerchantId merchantId,
+    required List<MerchantMatchProperty> properties,
+  }) async {
+    if (properties.isEmpty) {
+      return;
+    }
+
+    try {
+      for (final property in properties) {
+        _database.execute(
+          '''
+          INSERT OR IGNORE INTO merchant_match_properties (
+            merchant_id,
+            property_type,
+            property_value_raw,
+            property_value_normalized
+          ) VALUES (?, ?, ?, ?);
+          ''',
+          [
+            merchantId.value,
+            property.type.apiValue,
+            property.rawValue,
+            property.normalizedValue,
+          ],
+        );
+      }
+    } catch (error) {
+      throw PersistenceException(
+        'Failed to persist merchant match properties.',
+        cause: error,
+      );
+    }
+  }
+
+  @override
+  Future<List<MerchantCandidateScore>> scoreMerchantCandidates(
+    List<MerchantMatchProperty> properties,
+  ) async {
+    if (properties.isEmpty) {
+      return const <MerchantCandidateScore>[];
+    }
+
+    try {
+      final matchedWeightByMerchantId = <String, int>{};
+      for (final property in deduplicateMerchantMatchProperties(properties)) {
+        final rows = _database.select(
+          '''
+          SELECT merchant_id
+          FROM merchant_match_properties
+          WHERE property_type = ? AND property_value_normalized = ?;
+          ''',
+          [property.type.apiValue, property.normalizedValue],
+        );
+        for (final row in rows) {
+          final merchantId = row['merchant_id'] as String;
+          matchedWeightByMerchantId.update(
+            merchantId,
+            (score) => score + property.type.weight,
+            ifAbsent: () => property.type.weight,
+          );
+        }
+      }
+
+      final scores = matchedWeightByMerchantId.entries
+          .map(
+            (entry) => MerchantCandidateScore(
+              merchantId: MerchantId(entry.key),
+              score: entry.value / merchantMatchMaximumScore,
+            ),
+          )
+          .toList(growable: false)
+        ..sort((left, right) {
+          final scoreComparison = right.score.compareTo(left.score);
+          if (scoreComparison != 0) {
+            return scoreComparison;
+          }
+
+          return left.merchantId.value.compareTo(right.merchantId.value);
+        });
+
+      return scores;
+    } catch (error) {
+      throw PersistenceException(
+        'Failed to score merchant candidates.',
+        cause: error,
+      );
+    }
+  }
+
+  @override
   Future<Receipt> getById(ReceiptId receiptId) async {
     try {
       final row = _selectReceiptRow(receiptId);
@@ -87,6 +190,9 @@ class SqliteReceiptRepository implements ReceiptRepository {
             ? null
             : MerchantId(row['merchant_id'] as String),
         merchant: _selectAssignedMerchant(row['merchant_id'] as String?),
+        merchantAssignedType: _mapAssignedType(
+          row['merchant_assigned_type'] as String?,
+        ),
         itemsCurrency: _selectItemsCurrency(receiptId),
         items: _selectItems(receiptId),
         validationWarnings: _selectValidationWarnings(receiptId),
@@ -116,8 +222,23 @@ class SqliteReceiptRepository implements ReceiptRepository {
       _database.execute('BEGIN;');
       _deleteExtractionRows(receiptId);
       _database.execute(
-        'UPDATE receipts SET status = ?, extract_request_id = ? WHERE id = ?;',
-        [ReceiptStatus.pending.name, requestId.value, receiptId.value],
+        '''
+        UPDATE receipts
+        SET
+          status = ?,
+          extract_request_id = ?,
+          merchant_assigned_type = CASE
+            WHEN merchant_id IS NULL THEN ?
+            ELSE merchant_assigned_type
+          END
+        WHERE id = ?;
+        ''',
+        [
+          ReceiptStatus.pending.name,
+          requestId.value,
+          MerchantAssignedType.unmatched.name,
+          receiptId.value,
+        ],
       );
       _database.execute('COMMIT;');
     } catch (error) {
@@ -179,11 +300,16 @@ class SqliteReceiptRepository implements ReceiptRepository {
         validationWarnings: validationWarnings,
       );
       _database.execute(
-        'UPDATE receipts SET status = ?, extract_request_id = ?, items_currency = ? WHERE id = ?;',
+        '''
+        UPDATE receipts
+        SET status = ?, extract_request_id = ?, items_currency = ?, merchant_assigned_type = COALESCE(merchant_assigned_type, ?)
+        WHERE id = ?;
+        ''',
         [
           ReceiptStatus.processed.name,
           requestId.value,
           extractedItems?.currency,
+          MerchantAssignedType.unmatched.name,
           receiptId.value,
         ],
       );
@@ -208,8 +334,17 @@ class SqliteReceiptRepository implements ReceiptRepository {
       _deleteExtractionRows(receiptId);
       _deleteItemsRows(receiptId);
       _database.execute(
-        'UPDATE receipts SET status = ?, extract_request_id = ?, items_currency = NULL WHERE id = ?;',
-        [status.name, requestId.value, receiptId.value],
+        '''
+        UPDATE receipts
+        SET status = ?, extract_request_id = ?, items_currency = NULL, merchant_assigned_type = COALESCE(merchant_assigned_type, ?)
+        WHERE id = ?;
+        ''',
+        [
+          status.name,
+          requestId.value,
+          MerchantAssignedType.unmatched.name,
+          receiptId.value,
+        ],
       );
       _database.execute('COMMIT;');
     } catch (error) {
@@ -236,6 +371,7 @@ class SqliteReceiptRepository implements ReceiptRepository {
           receipts.status,
           receipts.extract_request_id,
           receipts.merchant_id,
+          receipts.merchant_assigned_type,
           receipt_images.original_file_name,
           receipt_images.mime_type,
           receipt_images.storage_path,
@@ -267,6 +403,9 @@ class SqliteReceiptRepository implements ReceiptRepository {
                   ? null
                   : MerchantId(row['merchant_id'] as String),
               merchant: _selectAssignedMerchant(row['merchant_id'] as String?),
+              merchantAssignedType: _mapAssignedType(
+                row['merchant_assigned_type'] as String?,
+              ),
               itemsCurrency: null,
               items: const <ReceiptItem>[],
               validationWarnings: const <ReceiptValidationWarning>[],
@@ -292,6 +431,7 @@ class SqliteReceiptRepository implements ReceiptRepository {
           receipts.status,
           receipts.extract_request_id,
           receipts.merchant_id,
+          receipts.merchant_assigned_type,
           receipt_images.original_file_name,
           receipt_images.mime_type,
           receipt_images.storage_path,
@@ -326,6 +466,9 @@ class SqliteReceiptRepository implements ReceiptRepository {
                   ? null
                   : MerchantId(row['merchant_id'] as String),
               merchant: _selectAssignedMerchant(row['merchant_id'] as String?),
+              merchantAssignedType: _mapAssignedType(
+                row['merchant_assigned_type'] as String?,
+              ),
               itemsCurrency: _selectItemsCurrency(receiptId),
               items: _selectItems(receiptId),
               validationWarnings: _selectValidationWarnings(receiptId),
@@ -366,15 +509,31 @@ class SqliteReceiptRepository implements ReceiptRepository {
   Future<void> assignMerchant({
     required ReceiptId receiptId,
     required MerchantId merchantId,
+    required MerchantAssignedType assignedType,
   }) async {
     try {
-      _database.execute('UPDATE receipts SET merchant_id = ? WHERE id = ?;', [
-        merchantId.value,
-        receiptId.value,
-      ]);
+      _database.execute(
+        'UPDATE receipts SET merchant_id = ?, merchant_assigned_type = ? WHERE id = ?;',
+        [merchantId.value, assignedType.name, receiptId.value],
+      );
     } catch (error) {
       throw PersistenceException(
         'Failed to assign merchant to receipt.',
+        cause: error,
+      );
+    }
+  }
+
+  @override
+  Future<void> clearMerchantAssignment(ReceiptId receiptId) async {
+    try {
+      _database.execute(
+        'UPDATE receipts SET merchant_id = NULL, merchant_assigned_type = ? WHERE id = ?;',
+        [MerchantAssignedType.unmatched.name, receiptId.value],
+      );
+    } catch (error) {
+      throw PersistenceException(
+        'Failed to clear merchant assignment from receipt.',
         cause: error,
       );
     }
@@ -555,6 +714,7 @@ class SqliteReceiptRepository implements ReceiptRepository {
         receipts.status,
         receipts.extract_request_id,
         receipts.merchant_id,
+        receipts.merchant_assigned_type,
         receipts.items_currency,
         receipt_images.original_file_name,
         receipt_images.mime_type,
@@ -822,6 +982,14 @@ class SqliteReceiptRepository implements ReceiptRepository {
       // Ignore rollback errors.
     }
   }
+}
+
+MerchantAssignedType? _mapAssignedType(String? value) {
+  if (value == null || value.isEmpty) {
+    return null;
+  }
+
+  return MerchantAssignedType.values.byName(value);
 }
 
 String? _nullableTaxId(String value) {

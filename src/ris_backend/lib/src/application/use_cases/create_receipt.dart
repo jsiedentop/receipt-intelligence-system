@@ -3,6 +3,7 @@ import 'package:ris_core/ris_core.dart';
 
 import '../services/extraction_job_dispatcher.dart';
 import '../../domain/exceptions/app_exceptions.dart';
+import '../../domain/models/merchant_match.dart';
 import '../../domain/models/receipt.dart';
 import '../../domain/repositories/image_storage_repository.dart';
 import '../../domain/repositories/receipt_repository.dart';
@@ -58,6 +59,7 @@ class CreateReceiptUseCase {
         extractRequestId: extractRequestId,
         merchantId: null,
         merchant: null,
+        merchantAssignedType: MerchantAssignedType.unmatched,
         itemsCurrency: null,
         items: const <ReceiptItem>[],
         validationWarnings: const <ReceiptValidationWarning>[],

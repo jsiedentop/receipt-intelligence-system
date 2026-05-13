@@ -1,5 +1,6 @@
 import 'package:ris_core/ris_core.dart';
 
+import 'merchant_match.dart';
 import 'merchant.dart';
 
 class Receipt {
@@ -11,6 +12,7 @@ class Receipt {
     required this.extractRequestId,
     required this.merchantId,
     required this.merchant,
+    required this.merchantAssignedType,
     required this.itemsCurrency,
     required this.items,
     required this.validationWarnings,
@@ -24,6 +26,7 @@ class Receipt {
   final ExtractRequestId extractRequestId;
   final MerchantId? merchantId;
   final Merchant? merchant;
+  final MerchantAssignedType? merchantAssignedType;
   final String? itemsCurrency;
   final List<ReceiptItem> items;
   final List<ReceiptValidationWarning> validationWarnings;
@@ -38,6 +41,7 @@ class Receipt {
       'extractRequestId': extractRequestId.value,
       'merchantId': merchantId?.value,
       'merchant': merchant?.toJson(),
+      'merchantAssignedType': merchantAssignedType?.name,
       'itemsCurrency': itemsCurrency,
       'items': items.map((item) => item.toJson()).toList(growable: false),
       'validationWarnings': validationWarnings

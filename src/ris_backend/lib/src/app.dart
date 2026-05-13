@@ -6,11 +6,16 @@ import 'package:shelf/shelf.dart';
 import 'api/handlers/merchant_handler.dart';
 import 'api/handlers/receipt_handler.dart';
 import 'api/router.dart';
+import 'application/use_cases/assign_merchant_to_receipt.dart';
+import 'application/use_cases/auto_assign_receipt_merchant.dart';
+import 'application/use_cases/clear_receipt_merchant_assignment.dart';
 import 'application/use_cases/create_merchant.dart';
 import 'application/use_cases/create_merchant_for_receipt.dart';
 import 'application/use_cases/create_receipt.dart';
+import 'application/use_cases/delete_merchant_match_property.dart';
 import 'application/use_cases/delete_merchant.dart';
 import 'application/use_cases/delete_receipt.dart';
+import 'application/use_cases/find_receipt_merchant_candidates.dart';
 import 'application/use_cases/get_merchant.dart';
 import 'application/use_cases/get_receipt.dart';
 import 'application/use_cases/get_receipt_image.dart';
@@ -42,10 +47,14 @@ Future<Handler> buildHandler(BackendConfig config) async {
     config: ExtractClientConfig(baseUri: config.extractBaseUri),
   );
   final extractService = HttpExtractService(extractClient);
+  final autoAssignReceiptMerchantUseCase = AutoAssignReceiptMerchantUseCase(
+    receiptRepository: receiptRepository,
+  );
   final processReceiptExtractionUseCase = ProcessReceiptExtractionUseCase(
     receiptRepository: receiptRepository,
     extractService: extractService,
     dataDirectoryPath: config.dataDirectoryPath,
+    autoAssignReceiptMerchantUseCase: autoAssignReceiptMerchantUseCase,
   );
   final extractionJobCoordinator = ExtractionJobCoordinator(
     receiptRepository: receiptRepository,
@@ -70,6 +79,19 @@ Future<Handler> buildHandler(BackendConfig config) async {
     receiptRepository: receiptRepository,
     merchantRepository: merchantRepository,
   );
+  final assignMerchantToReceiptUseCase = AssignMerchantToReceiptUseCase(
+    receiptRepository: receiptRepository,
+    merchantRepository: merchantRepository,
+  );
+  final clearReceiptMerchantAssignmentUseCase =
+      ClearReceiptMerchantAssignmentUseCase(
+        receiptRepository: receiptRepository,
+      );
+  final findReceiptMerchantCandidatesUseCase =
+      FindReceiptMerchantCandidatesUseCase(
+        receiptRepository: receiptRepository,
+        merchantRepository: merchantRepository,
+      );
   final getMerchantUseCase = GetMerchantUseCase(
     merchantRepository: merchantRepository,
   );
@@ -79,6 +101,9 @@ Future<Handler> buildHandler(BackendConfig config) async {
   final deleteMerchantUseCase = DeleteMerchantUseCase(
     merchantRepository: merchantRepository,
     receiptRepository: receiptRepository,
+  );
+  final deleteMerchantMatchPropertyUseCase = DeleteMerchantMatchPropertyUseCase(
+    merchantRepository: merchantRepository,
   );
   final listReceiptsUseCase = ListReceiptsUseCase(
     receiptRepository: receiptRepository,
@@ -95,9 +120,13 @@ Future<Handler> buildHandler(BackendConfig config) async {
     receiptRepository: receiptRepository,
   );
   final receiptHandler = ReceiptHandler(
+    assignMerchantToReceiptUseCase: assignMerchantToReceiptUseCase,
+    clearReceiptMerchantAssignmentUseCase:
+        clearReceiptMerchantAssignmentUseCase,
     createReceiptUseCase: createReceiptUseCase,
     createMerchantForReceiptUseCase: createMerchantForReceiptUseCase,
     deleteReceiptUseCase: deleteReceiptUseCase,
+    findReceiptMerchantCandidatesUseCase: findReceiptMerchantCandidatesUseCase,
     getReceiptUseCase: getReceiptUseCase,
     getReceiptImageUseCase: getReceiptImageUseCase,
     listReceiptsUseCase: listReceiptsUseCase,
@@ -106,6 +135,7 @@ Future<Handler> buildHandler(BackendConfig config) async {
   );
   final merchantHandler = MerchantHandler(
     createMerchantUseCase: createMerchantUseCase,
+    deleteMerchantMatchPropertyUseCase: deleteMerchantMatchPropertyUseCase,
     deleteMerchantUseCase: deleteMerchantUseCase,
     getMerchantUseCase: getMerchantUseCase,
     listMerchantsUseCase: listMerchantsUseCase,

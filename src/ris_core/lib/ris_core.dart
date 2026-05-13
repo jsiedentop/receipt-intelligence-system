@@ -1,6 +1,8 @@
 library;
 
 export 'src/backend/backend_client.dart';
+export 'src/backend/models/merchant_candidate_dto.dart';
+export 'src/backend/models/merchant_match_property_dto.dart';
 export 'src/backend/models/merchant_response_dto.dart';
 export 'src/backend/models/receipt_item_category.dart';
 export 'src/backend/models/receipt_item_dto.dart';

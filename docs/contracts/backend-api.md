@@ -57,7 +57,8 @@ Example response:
   "street": "Julius-Lossmann-Strasse 11",
   "postCode": "90469",
   "city": "Nuernberg",
-  "taxId": null
+  "taxId": null,
+  "matchProperties": []
 }
 ```
 
@@ -65,12 +66,25 @@ Example response:
 
 Purpose:
 - retrieve one persisted merchant
+- include stored merchant match properties for review and cleanup
 
 Success response:
 - `200 OK`
 
 Not found response:
 - `404 Not Found`
+
+### `DELETE /v1/merchants/{merchantId}/match-properties/{propertyId}`
+
+Purpose:
+- delete one learned merchant match property from a merchant
+
+Success response:
+- `200 OK`
+- response body is the updated merchant object
+
+Not found response:
+- `404 Not Found` when the merchant or merchant match property does not exist
 
 ### `GET /v1/merchants`
 
@@ -228,6 +242,74 @@ Success response:
 Conflict response:
 - `409 Conflict` when the receipt already has an assigned merchant
 
+Behavior:
+- the backend stores the original extracted merchant properties as match-learning data for the created merchant
+
+### `GET /v1/receipts/{receiptId}/merchant-candidates`
+
+Purpose:
+- return scored existing merchant candidates for the extracted merchant properties of a receipt
+
+Success response:
+- `200 OK`
+- response body is a JSON array ordered by `score` descending
+- `score` is a normalized match score between `0.0` and `1.0`
+
+Example response:
+
+```json
+[
+  {
+    "merchantId": "mer_1747061885123456",
+    "score": 0.63,
+    "merchant": {
+      "id": "mer_1747061885123456",
+      "name": "Lidl",
+      "street": "Julius-Lossmann-Strasse 11",
+      "postCode": "90469",
+      "city": "Nuernberg",
+      "taxId": "DE814429027"
+    }
+  }
+]
+```
+
+### `PUT /v1/receipts/{receiptId}/merchant`
+
+Purpose:
+- assign an existing merchant to a receipt
+
+Request body:
+- `application/json`
+
+```json
+{
+  "merchantId": "mer_1747061885123456"
+}
+```
+
+Success response:
+- `200 OK`
+- response body is the updated receipt object
+
+Conflict response:
+- `409 Conflict` when the receipt already has an assigned merchant
+
+Behavior:
+- the backend stores the original extracted merchant properties as match-learning data for the assigned merchant
+
+### `DELETE /v1/receipts/{receiptId}/merchant`
+
+Purpose:
+- clear the merchant assignment from a receipt without deleting the merchant
+
+Success response:
+- `200 OK`
+- response body is the updated receipt object with `merchantId: null`, `merchant: null`, and `merchantAssignedType: "unmatched"`
+
+Not found response:
+- `404 Not Found` when the receipt has no assigned merchant
+
 ### `GET /v1/receipts/{receiptId}/image`
 
 Purpose:
@@ -283,6 +365,7 @@ Example response:
     "extractRequestId": "ext_1a789ec91879",
     "merchantId": null,
     "merchant": null,
+    "merchantAssignedType": "unmatched",
     "itemsCurrency": null,
     "items": [],
     "validationWarnings": [],
@@ -302,6 +385,7 @@ Example response:
     "extractRequestId": "ext_1a789ec91878",
     "merchantId": null,
     "merchant": null,
+    "merchantAssignedType": "unmatched",
     "itemsCurrency": "EUR",
     "items": [
       {
@@ -396,6 +480,16 @@ Current response shape:
 | `postCode` | string | Merchant postal code. |
 | `city` | string | Merchant city. |
 | `taxId` | string or `null` | Merchant tax identifier when available. |
+| `matchProperties` | array | Learned extracted merchant match properties linked to this merchant. |
+
+### `matchProperties[]`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | number | Backend merchant match property identifier. |
+| `propertyType` | string | One of `merchant_name`, `street`, `post_code`, `city`, `tax_id`, `tse_serial_number`. |
+| `propertyValueRaw` | string | Original extracted merchant value stored for matching. |
+| `propertyValueNormalized` | string | Normalized value used for exact merchant matching. |
 
 ### Receipt
 
@@ -407,6 +501,7 @@ Current response shape:
 | `extractRequestId` | string | Identifier of the current extraction attempt. |
 | `merchantId` | string or `null` | Linked merchant identifier when a merchant is assigned. |
 | `merchant` | object or `null` | Linked merchant snapshot for receipt detail views. |
+| `merchantAssignedType` | string or `null` | Merchant assignment origin. One of `auto`, `manual`, or `unmatched`. |
 | `itemsCurrency` | string or `null` | Currency shared by the persisted receipt items. |
 | `items` | array | Persisted receipt items derived from structured extraction and later manual edits. |
 | `validationWarnings` | array | Receipt-level validation warnings generated from persisted item data. |
@@ -481,7 +576,9 @@ Current error categories:
   - extraction restart requested while another extraction is active
 - `404 Not Found`
   - missing merchant
+  - missing merchant match property
   - missing receipt
+  - missing receipt merchant assignment
   - missing receipt item
   - missing original image for a known receipt
 - `415 Unsupported Media Type`
@@ -521,8 +618,15 @@ The backend currently follows these rules:
 - deleting a receipt removes it from listing and detail endpoints immediately
 - the backend processes extraction jobs asynchronously in the background
 - when a new extraction is started for an existing receipt, any previous extraction payload is deleted immediately
+- restarting extraction never removes an existing merchant assignment automatically
 - `extraction` remains `null` until the current extraction finishes successfully
 - successful extraction persists structured line items as editable receipt items
+- successful extraction attempts automatic merchant assignment only when the receipt is currently unmatched
+- automatic merchant assignment only happens for one clear top-scoring candidate with sufficient confidence; weak or too-close matches leave the receipt unmatched
+- merchant matching uses normalized exact equality over extracted merchant name, street, post code, city, tax id, and TSE serial number values
+- merchant candidate scores are normalized to a `0.0..1.0` range based on the configured match-property weights
+- manual merchant assignment can be cleared without deleting the underlying merchant record
+- merchant detail responses expose the currently learned merchant match properties
 - receipt item validation currently emits `ITEM_TOTAL_MISMATCH` when item totals differ from the extracted final amount after cent-based comparison
 - the backend retries receipts in status `pending` or `processing` after restart
 - background extraction jobs ignore receipts that were deleted before processing finished
@@ -539,11 +643,15 @@ Implemented now:
 - `POST /v1/merchants`
 - `GET /v1/merchants`
 - `GET /v1/merchants/{merchantId}`
+- `DELETE /v1/merchants/{merchantId}/match-properties/{propertyId}`
 - `DELETE /v1/merchants/{merchantId}`
 - `POST /v1/receipts`
 - `GET /v1/receipts`
 - `GET /v1/receipts/{receiptId}`
 - `POST /v1/receipts/{receiptId}/merchant`
+- `GET /v1/receipts/{receiptId}/merchant-candidates`
+- `PUT /v1/receipts/{receiptId}/merchant`
+- `DELETE /v1/receipts/{receiptId}/merchant`
 - `PATCH /v1/receipts/{receiptId}/items/{itemId}`
 - `GET /v1/receipts/{receiptId}/image`
 - `POST /v1/receipts/{receiptId}/extractions`

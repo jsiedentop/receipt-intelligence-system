@@ -6,6 +6,7 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
 import '../../application/use_cases/create_merchant.dart';
+import '../../application/use_cases/delete_merchant_match_property.dart';
 import '../../application/use_cases/delete_merchant.dart';
 import '../../application/use_cases/get_merchant.dart';
 import '../../application/use_cases/list_merchants.dart';
@@ -16,12 +17,14 @@ import '../mappers/merchant_response_mapper.dart';
 class MerchantHandler {
   MerchantHandler({
     required this.createMerchantUseCase,
+    required this.deleteMerchantMatchPropertyUseCase,
     required this.deleteMerchantUseCase,
     required this.getMerchantUseCase,
     required this.listMerchantsUseCase,
   });
 
   final CreateMerchantUseCase createMerchantUseCase;
+  final DeleteMerchantMatchPropertyUseCase deleteMerchantMatchPropertyUseCase;
   final DeleteMerchantUseCase deleteMerchantUseCase;
   final GetMerchantUseCase getMerchantUseCase;
   final ListMerchantsUseCase listMerchantsUseCase;
@@ -105,6 +108,40 @@ class MerchantHandler {
 
       await deleteMerchantUseCase.execute(MerchantId(merchantId));
       return Response(HttpStatus.noContent);
+    } on AppException catch (error) {
+      return _errorMapper.map(error);
+    } catch (_) {
+      return _errorMapper.internalError();
+    }
+  }
+
+  Future<Response> deleteMatchProperty(Request request) async {
+    try {
+      final merchantId = request.params['merchantId'];
+      final propertyId = request.params['propertyId'];
+      if (merchantId == null || merchantId.isEmpty) {
+        throw ValidationException('Missing merchant id.');
+      }
+      if (propertyId == null || propertyId.isEmpty) {
+        throw ValidationException('Missing merchant match property id.');
+      }
+
+      final parsedPropertyId = int.tryParse(propertyId);
+      if (parsedPropertyId == null || parsedPropertyId < 1) {
+        throw ValidationException(
+          'Merchant match property id must be a positive integer.',
+        );
+      }
+
+      final merchant = await deleteMerchantMatchPropertyUseCase.execute(
+        merchantId: MerchantId(merchantId),
+        propertyId: parsedPropertyId,
+      );
+      final responseDto = _merchantResponseMapper.toDto(merchant);
+      return Response.ok(
+        jsonEncode(responseDto.toJson()),
+        headers: {'content-type': 'application/json'},
+      );
     } on AppException catch (error) {
       return _errorMapper.map(error);
     } catch (_) {

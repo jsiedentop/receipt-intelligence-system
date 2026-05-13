@@ -48,6 +48,14 @@ void main() {
     expect(body['requestId'], 'ext_test_2');
   });
 
+  test('returns recipe-3 for receipt-3 upload', () async {
+    final response = await _upload(host, 'receipt-3.png', requestId: 'ext_test_3');
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+
+    expect(response.statusCode, 200);
+    expect(body['requestId'], 'ext_test_3');
+  });
+
   test('returns 400 when requestId is missing', () async {
     final filePath = '../../data/receipt-1.png';
     final request = http.MultipartRequest('POST', host.resolve('/v1/extractions'))

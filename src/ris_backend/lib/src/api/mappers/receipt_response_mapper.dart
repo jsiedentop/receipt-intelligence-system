@@ -5,6 +5,14 @@ import '../../domain/models/receipt.dart';
 class ReceiptResponseMapper {
   const ReceiptResponseMapper();
 
+  // This mapping is currently only a complete pass-through and doesn't show
+  // the benefit of having a separate DTO layer, as the ReceiptResponseDto
+  // is almost identical to the Receipt model. This is mostly because we show
+  // all kind of metadata and details in the UI, but in a real world scenario,
+  // we would deliver only the necessary data to the client and keep internal
+  // details hidden. We could consider to create a new analytics/admin endpoint
+  // for the details we would remove from the mapping here.
+
   ReceiptResponseDto toDto(Receipt receipt) {
     return ReceiptResponseDto(
       id: receipt.id,
@@ -20,14 +28,29 @@ class ReceiptResponseMapper {
       extractRequestId: receipt.extractRequestId,
       merchantId: receipt.merchantId,
       merchant: receipt.merchant == null
+            ? null
+            : MerchantResponseDto(
+                id: receipt.merchant!.id,
+                name: receipt.merchant!.name,
+                street: receipt.merchant!.street,
+                postCode: receipt.merchant!.postCode,
+                city: receipt.merchant!.city,
+                taxId: receipt.merchant!.taxId,
+                matchProperties: receipt.merchant!.matchProperties
+                    .map(
+                      (property) => MerchantMatchPropertyDto(
+                        id: property.id,
+                        propertyType: property.type.apiValue,
+                        propertyValueRaw: property.rawValue,
+                        propertyValueNormalized: property.normalizedValue,
+                      ),
+                    )
+                    .toList(growable: false),
+              ),
+      merchantAssignedType: receipt.merchantAssignedType == null
           ? null
-          : MerchantResponseDto(
-              id: receipt.merchant!.id,
-              name: receipt.merchant!.name,
-              street: receipt.merchant!.street,
-              postCode: receipt.merchant!.postCode,
-              city: receipt.merchant!.city,
-              taxId: receipt.merchant!.taxId,
+          : MerchantAssignedTypeDto.values.byName(
+              receipt.merchantAssignedType!.name,
             ),
       itemsCurrency: receipt.itemsCurrency,
       items: receipt.items

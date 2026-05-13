@@ -5,6 +5,8 @@ import '../../ids/extract_request_id.dart';
 import '../../ids/merchant_id.dart';
 import '../../ids/receipt_id.dart';
 
+enum MerchantAssignedTypeDto { auto, manual, unmatched }
+
 typedef BackendJsonMap = Map<String, dynamic>;
 
 class ReceiptResponseDto {
@@ -16,6 +18,7 @@ class ReceiptResponseDto {
     required this.extractRequestId,
     required this.merchantId,
     required this.merchant,
+    required this.merchantAssignedType,
     required this.itemsCurrency,
     required this.items,
     required this.validationWarnings,
@@ -29,6 +32,7 @@ class ReceiptResponseDto {
   final ExtractRequestId extractRequestId;
   final MerchantId? merchantId;
   final MerchantResponseDto? merchant;
+  final MerchantAssignedTypeDto? merchantAssignedType;
   final String? itemsCurrency;
   final List<ReceiptItemDto> items;
   final List<ReceiptValidationWarningDto> validationWarnings;
@@ -48,6 +52,11 @@ class ReceiptResponseDto {
           ? null
           : MerchantResponseDto.fromJson(
               _asJsonMap(json['merchant'], 'merchant'),
+            ),
+      merchantAssignedType: json['merchantAssignedType'] == null
+          ? null
+          : MerchantAssignedTypeDto.values.byName(
+              json['merchantAssignedType'] as String,
             ),
       itemsCurrency: json['itemsCurrency'] as String?,
       items: (json['items'] as List? ?? const <Object?>[])
@@ -78,6 +87,7 @@ class ReceiptResponseDto {
       'extractRequestId': extractRequestId.value,
       'merchantId': merchantId?.value,
       'merchant': merchant?.toJson(),
+      'merchantAssignedType': merchantAssignedType?.name,
       'itemsCurrency': itemsCurrency,
       'items': items.map((item) => item.toJson()).toList(growable: false),
       'validationWarnings': validationWarnings

@@ -8,6 +8,17 @@ class RisMerchantDetailRepository implements MerchantDetailRepository {
   final BackendClient _backendClient;
 
   @override
+  Future<MerchantResponseDto> deleteMerchantMatchProperty({
+    required MerchantId merchantId,
+    required int propertyId,
+  }) {
+    return _backendClient.deleteMerchantMatchProperty(
+      merchantId: merchantId,
+      propertyId: propertyId,
+    );
+  }
+
+  @override
   Future<void> deleteMerchant(MerchantId merchantId) {
     return _backendClient.deleteMerchant(merchantId);
   }

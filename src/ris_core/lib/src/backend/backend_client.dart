@@ -6,6 +6,7 @@ import 'package:http_parser/http_parser.dart';
 
 import '../ids/merchant_id.dart';
 import '../ids/receipt_id.dart';
+import 'models/merchant_candidate_dto.dart';
 import 'models/merchant_response_dto.dart';
 import 'models/receipt_item_category.dart';
 import 'models/receipt_response_dto.dart';
@@ -175,6 +176,58 @@ class BackendClient {
     return _parseReceiptResponse(response.body);
   }
 
+  Future<List<MerchantCandidateDto>> getReceiptMerchantCandidates(
+    ReceiptId receiptId,
+  ) async {
+    final response = await _sendGet(
+      '/v1/receipts/${receiptId.value}/merchant-candidates',
+    );
+    if (response.statusCode != 200) {
+      throw BackendClientHttpException(
+        statusCode: response.statusCode,
+        responseBody: response.body,
+        message:
+            'Backend service returned an unsuccessful merchant candidate response.',
+      );
+    }
+
+    return _parseMerchantCandidateListResponse(response.body);
+  }
+
+  Future<ReceiptResponseDto> assignMerchantToReceipt({
+    required ReceiptId receiptId,
+    required MerchantId merchantId,
+  }) async {
+    final response = await _sendPutJson(
+      '/v1/receipts/${receiptId.value}/merchant',
+      body: {'merchantId': merchantId.value},
+    );
+    if (response.statusCode != 200) {
+      throw BackendClientHttpException(
+        statusCode: response.statusCode,
+        responseBody: response.body,
+        message:
+            'Backend service returned an unsuccessful merchant assignment response.',
+      );
+    }
+
+    return _parseReceiptResponse(response.body);
+  }
+
+  Future<ReceiptResponseDto> clearReceiptMerchant(ReceiptId receiptId) async {
+    final response = await _sendDelete('/v1/receipts/${receiptId.value}/merchant');
+    if (response.statusCode != 200) {
+      throw BackendClientHttpException(
+        statusCode: response.statusCode,
+        responseBody: response.body,
+        message:
+            'Backend service returned an unsuccessful merchant unassignment response.',
+      );
+    }
+
+    return _parseReceiptResponse(response.body);
+  }
+
   Future<ReceiptResponseDto> updateReceiptItem({
     required ReceiptId receiptId,
     required String itemId,
@@ -263,6 +316,25 @@ class BackendClient {
         message: 'Backend service returned an unsuccessful delete response.',
       );
     }
+  }
+
+  Future<MerchantResponseDto> deleteMerchantMatchProperty({
+    required MerchantId merchantId,
+    required int propertyId,
+  }) async {
+    final response = await _sendDelete(
+      '/v1/merchants/${merchantId.value}/match-properties/$propertyId',
+    );
+    if (response.statusCode != 200) {
+      throw BackendClientHttpException(
+        statusCode: response.statusCode,
+        responseBody: response.body,
+        message:
+            'Backend service returned an unsuccessful merchant match property delete response.',
+      );
+    }
+
+    return _parseMerchantResponse(response.body);
   }
 
   Future<BackendReceiptImage> getReceiptImage(ReceiptId receiptId) async {
@@ -412,6 +484,31 @@ class BackendClient {
     }
   }
 
+  Future<http.Response> _sendPutJson(
+    String path, {
+    required Map<String, Object?> body,
+  }) async {
+    try {
+      return await _httpClient
+          .put(
+            config.baseUri.resolve(path),
+            headers: {'content-type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(config.timeout);
+    } on TimeoutException catch (error) {
+      throw BackendClientTransportException(
+        'Backend service request timed out.',
+        cause: error,
+      );
+    } on http.ClientException catch (error) {
+      throw BackendClientTransportException(
+        'Backend service request failed.',
+        cause: error,
+      );
+    }
+  }
+
   ReceiptResponseDto _parseReceiptResponse(String source) {
     try {
       final json = _asJsonMap(jsonDecode(source), 'backend receipt response');
@@ -473,6 +570,30 @@ class BackendClient {
           .map(
             (item) => MerchantResponseDto.fromJson(
               _asJsonMap(item, 'backend merchant list item'),
+            ),
+          )
+          .toList(growable: false);
+    } on FormatException catch (error) {
+      throw BackendClientInvalidResponseException(
+        'Backend service returned an invalid JSON payload.',
+        cause: error,
+      );
+    }
+  }
+
+  List<MerchantCandidateDto> _parseMerchantCandidateListResponse(String source) {
+    try {
+      final decoded = jsonDecode(source);
+      if (decoded is! List) {
+        throw const FormatException(
+          'Expected backend merchant candidate response to be a JSON array.',
+        );
+      }
+
+      return decoded
+          .map(
+            (item) => MerchantCandidateDto.fromJson(
+              _asJsonMap(item, 'backend merchant candidate item'),
             ),
           )
           .toList(growable: false);

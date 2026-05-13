@@ -1,0 +1,47 @@
+{
+  "requestId": "ext_fixture_3",
+  "source": {
+    "fileName": "receipt-3.png",
+    "filePath": "/tmp/receipt-3.png",
+    "mimeType": "image/png"
+  },
+  "warnings": [],
+  "ocr": {
+    "rawText": "HORNBACH\nIndustriestrasse 1\n90469 Nuernberg",
+    "blocks": [],
+    "lines": []
+  },
+  "structured": {
+    "lineItems": null,
+    "merchantInfo": {
+      "merchant_name": "Hornbach",
+      "street": "Industriestrasse 1",
+      "post_code": "11111",
+      "city": "Nuernberg",
+      "ustid": null,
+      "tse_serial_number": null
+    },
+    "qrcode_tse_data": null
+  },
+  "metadata": {
+    "extractor": "ris_extract_mock",
+    "version": "0.1.0",
+    "models": {
+      "ocr": {
+        "name": "fixture",
+        "textDetectionModel": "fixture",
+        "textRecognitionModel": "fixture",
+        "status": "ok"
+      },
+      "llm": {
+        "provider": "openai",
+        "model": "gpt-5.4-nano",
+        "status": "missing_token"
+      }
+    },
+    "runtime": {
+      "python": "dart",
+      "platform": "test"
+    }
+  }
+}

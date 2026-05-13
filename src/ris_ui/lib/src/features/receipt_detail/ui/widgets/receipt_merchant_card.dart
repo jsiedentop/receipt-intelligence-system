@@ -5,20 +5,29 @@ class ReceiptMerchantCard extends StatefulWidget {
   const ReceiptMerchantCard({
     super.key,
     required this.receipt,
+    required this.candidates,
     required this.isSaving,
+    required this.isLoadingCandidates,
+    required this.isClearing,
     required this.onSave,
+    required this.onAssignExisting,
+    required this.onClearAssignment,
   });
 
   final ReceiptResponseDto receipt;
+  final List<MerchantCandidateDto> candidates;
   final bool isSaving;
+  final bool isLoadingCandidates;
+  final bool isClearing;
   final Future<void> Function({
     required String name,
     required String street,
     required String postCode,
     required String city,
     required String? taxId,
-  })
-  onSave;
+  }) onSave;
+  final Future<void> Function(MerchantId merchantId) onAssignExisting;
+  final Future<void> Function() onClearAssignment;
 
   @override
   State<ReceiptMerchantCard> createState() => _ReceiptMerchantCardState();
@@ -60,22 +69,42 @@ class _ReceiptMerchantCardState extends State<ReceiptMerchantCard> {
   @override
   Widget build(BuildContext context) {
     final merchant = widget.receipt.merchant;
-    if (merchant != null) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Wrap(
-                spacing: 12,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text(
-                    'Assigned merchant',
-                    style: Theme.of(context).textTheme.titleMedium,
+    final assignmentLabel = switch (widget.receipt.merchantAssignedType) {
+      MerchantAssignedTypeDto.auto => 'Auto assigned',
+      MerchantAssignedTypeDto.manual => 'Manually assigned',
+      MerchantAssignedTypeDto.unmatched || null => 'Unmatched',
+    };
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  merchant == null ? 'Merchant assignment' : 'Assigned merchant',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
                   ),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    assignmentLabel,
+                    style: Theme.of(context).textTheme.labelMedium,
+                  ),
+                ),
+                if (merchant != null)
                   InkWell(
                     onTap: () {
                       Navigator.of(
@@ -91,102 +120,118 @@ class _ReceiptMerchantCardState extends State<ReceiptMerchantCard> {
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (merchant != null) ...[
               _MerchantValue(label: 'Name', value: merchant.name),
               _MerchantValue(label: 'Street', value: merchant.street),
               _MerchantValue(label: 'Post code', value: merchant.postCode),
               _MerchantValue(label: 'City', value: merchant.city),
               if (merchant.taxId != null)
                 _MerchantValue(label: 'Tax ID', value: merchant.taxId!),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Create merchant',
-                style: Theme.of(context).textTheme.titleMedium,
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: widget.isClearing
+                    ? null
+                    : () => widget.onClearAssignment(),
+                icon: widget.isClearing
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.link_off_outlined),
+                label: Text(
+                  widget.isClearing
+                      ? 'Removing assignment...'
+                      : 'Remove assignment',
+                ),
               ),
-              const SizedBox(height: 8),
+            ] else ...[
               Text(
-                'Create a merchant from the extracted receipt metadata and link it to this receipt.',
+                'Choose one of the scored merchant matches or create a new merchant from the extracted receipt metadata.',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Name'),
-                validator: _required,
+              _CandidateSection(
+                candidates: widget.candidates,
+                isLoading: widget.isLoadingCandidates,
+                isSaving: widget.isSaving,
+                onAssign: widget.onAssignExisting,
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _streetController,
-                decoration: const InputDecoration(labelText: 'Street'),
-                validator: _required,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _postCodeController,
-                decoration: const InputDecoration(labelText: 'Post code'),
-                validator: _required,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _cityController,
-                decoration: const InputDecoration(labelText: 'City'),
-                validator: _required,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _taxIdController,
-                decoration: const InputDecoration(
-                  labelText: 'Tax ID (optional)',
+              const SizedBox(height: 20),
+              Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Create new merchant',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _nameController,
+                      decoration: const InputDecoration(labelText: 'Name'),
+                      validator: _required,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _streetController,
+                      decoration: const InputDecoration(labelText: 'Street'),
+                      validator: _required,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _postCodeController,
+                      decoration: const InputDecoration(labelText: 'Post code'),
+                      validator: _required,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _cityController,
+                      decoration: const InputDecoration(labelText: 'City'),
+                      validator: _required,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _taxIdController,
+                      decoration: const InputDecoration(
+                        labelText: 'Tax ID (optional)',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: widget.isSaving
+                          ? null
+                          : () async {
+                              if (!_formKey.currentState!.validate()) {
+                                return;
+                              }
+
+                              await widget.onSave(
+                                name: _nameController.text,
+                                street: _streetController.text,
+                                postCode: _postCodeController.text,
+                                city: _cityController.text,
+                                taxId: _taxIdController.text,
+                              );
+                            },
+                      icon: widget.isSaving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.save_outlined),
+                      label: Text(widget.isSaving ? 'Saving...' : 'Create merchant'),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  FilledButton.icon(
-                    onPressed: widget.isSaving
-                        ? null
-                        : () async {
-                            if (!_formKey.currentState!.validate()) {
-                              return;
-                            }
-
-                            await widget.onSave(
-                              name: _nameController.text,
-                              street: _streetController.text,
-                              postCode: _postCodeController.text,
-                              city: _cityController.text,
-                              taxId: _taxIdController.text,
-                            );
-                          },
-                    icon: widget.isSaving
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.save_outlined),
-                    label: Text(widget.isSaving ? 'Saving...' : 'Save'),
-                  ),
-                ],
-              ),
             ],
-          ),
+          ],
         ),
       ),
     );
@@ -198,6 +243,103 @@ class _ReceiptMerchantCardState extends State<ReceiptMerchantCard> {
     }
 
     return null;
+  }
+}
+
+class _CandidateSection extends StatelessWidget {
+  const _CandidateSection({
+    required this.candidates,
+    required this.isLoading,
+    required this.isSaving,
+    required this.onAssign,
+  });
+
+  final List<MerchantCandidateDto> candidates;
+  final bool isLoading;
+  final bool isSaving;
+  final Future<void> Function(MerchantId merchantId) onAssign;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (candidates.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Text('No merchant candidates available yet.'),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Existing merchants by score',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 12),
+        ...candidates.map(
+          (candidate) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          candidate.merchant.name,
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                      ),
+                      Text(
+                        'Score ${candidate.score.toStringAsFixed(2)}',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(candidate.merchant.street),
+                  Text(
+                    '${candidate.merchant.postCode} ${candidate.merchant.city}',
+                  ),
+                  if (candidate.merchant.taxId != null) ...[
+                    const SizedBox(height: 4),
+                    Text('Tax ID: ${candidate.merchant.taxId}'),
+                  ],
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: FilledButton.tonalIcon(
+                      onPressed: isSaving
+                          ? null
+                          : () => onAssign(candidate.merchantId),
+                      icon: const Icon(Icons.link_outlined),
+                      label: const Text('Assign'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 

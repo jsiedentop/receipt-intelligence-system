@@ -63,6 +63,7 @@ void main() {
         'city': 'Nuernberg',
         'taxId': 'DE123456789',
       },
+      'merchantAssignedType': 'manual',
       'itemsCurrency': 'EUR',
       'items': [
         {
@@ -115,6 +116,7 @@ void main() {
     expect(dto.extractRequestId.value, 'ext_12345678901234');
     expect(dto.merchantId!.value, 'mer_12345678901234');
     expect(dto.merchant!.name, 'Lidl');
+    expect(dto.merchantAssignedType, MerchantAssignedTypeDto.manual);
     expect(dto.itemsCurrency, 'EUR');
     expect(dto.items, hasLength(1));
     expect(dto.items.first.category, ReceiptItemCategory.food);
@@ -138,12 +140,21 @@ void main() {
       'postCode': '90469',
       'city': 'Nuernberg',
       'taxId': 'DE123456789',
+      'matchProperties': [
+        {
+          'id': 1,
+          'propertyType': 'merchant_name',
+          'propertyValueRaw': 'LDL',
+          'propertyValueNormalized': 'ldl',
+        },
+      ],
     });
 
     expect(dto.id.value, 'mer_12345678901234');
     expect(dto.name, 'Lidl');
     expect(dto.postCode, '90469');
     expect(dto.city, 'Nuernberg');
+    expect(dto.matchProperties, hasLength(1));
   });
 
   test('parses backend merchant response dto without tax id', () {
@@ -154,6 +165,7 @@ void main() {
       'postCode': '90469',
       'city': 'Nuernberg',
       'taxId': null,
+      'matchProperties': const <Object?>[],
     });
 
     expect(dto.id.value, 'mer_12345678901234');
@@ -248,6 +260,7 @@ void main() {
 
     expect(response.merchantId?.value, 'mer_12345678901234');
     expect(response.merchant?.city, 'Nuernberg');
+    expect(response.merchantAssignedType, MerchantAssignedTypeDto.manual);
   });
 
   test(
@@ -296,6 +309,51 @@ void main() {
     expect(response.items.first.category, ReceiptItemCategory.food);
   });
 
+  test('backend client parses merchant candidates', () async {
+    final client = BackendClient(
+      config: BackendClientConfig(baseUri: Uri.parse('http://localhost:8080')),
+      httpClient: _FakeBackendHttpClient(),
+    );
+
+    final response = await client.getReceiptMerchantCandidates(
+      ReceiptId('rcp_12345678901234'),
+    );
+
+    expect(response, hasLength(2));
+    expect(response.first.merchantId.value, 'mer_12345678901234');
+    expect(response.first.score, closeTo(0.73, 0.0001));
+  });
+
+  test('backend client assigns existing merchant to receipt', () async {
+    final client = BackendClient(
+      config: BackendClientConfig(baseUri: Uri.parse('http://localhost:8080')),
+      httpClient: _FakeBackendHttpClient(),
+    );
+
+    final response = await client.assignMerchantToReceipt(
+      receiptId: ReceiptId('rcp_12345678901234'),
+      merchantId: MerchantId('mer_12345678901234'),
+    );
+
+    expect(response.merchantId?.value, 'mer_12345678901234');
+    expect(response.merchantAssignedType, MerchantAssignedTypeDto.manual);
+  });
+
+  test('backend client clears merchant assignment from receipt', () async {
+    final client = BackendClient(
+      config: BackendClientConfig(baseUri: Uri.parse('http://localhost:8080')),
+      httpClient: _FakeBackendHttpClient(),
+    );
+
+    final response = await client.clearReceiptMerchant(
+      ReceiptId('rcp_12345678901234'),
+    );
+
+    expect(response.merchantId, isNull);
+    expect(response.merchant, isNull);
+    expect(response.merchantAssignedType, MerchantAssignedTypeDto.unmatched);
+  });
+
   test('backend client parses get merchant responses', () async {
     final client = BackendClient(
       config: BackendClientConfig(baseUri: Uri.parse('http://localhost:8080')),
@@ -309,6 +367,21 @@ void main() {
     expect(response.id.value, 'mer_12345678901234');
     expect(response.street, 'Julius-Lossmann-Strasse 11');
     expect(response.city, 'Nuernberg');
+    expect(response.matchProperties, isNotEmpty);
+  });
+
+  test('backend client deletes merchant match property', () async {
+    final client = BackendClient(
+      config: BackendClientConfig(baseUri: Uri.parse('http://localhost:8080')),
+      httpClient: _FakeBackendHttpClient(),
+    );
+
+    final response = await client.deleteMerchantMatchProperty(
+      merchantId: MerchantId('mer_12345678901234'),
+      propertyId: 1,
+    );
+
+    expect(response.matchProperties, hasLength(1));
   });
 
   test('backend client parses paginated receipt list responses', () async {
@@ -446,6 +519,29 @@ class _FakeBackendHttpClient extends http.BaseClient {
     }
 
     if (request.method == 'DELETE' &&
+        request.url.path.endsWith(
+          '/v1/merchants/mer_12345678901234/match-properties/1',
+        )) {
+      final body = jsonEncode({
+        'id': 'mer_12345678901234',
+        'name': 'Lidl',
+        'street': 'Julius-Lossmann-Strasse 11',
+        'postCode': '90469',
+        'city': 'Nuernberg',
+        'taxId': 'DE123456789',
+        'matchProperties': [
+          {
+            'id': 2,
+            'propertyType': 'street',
+            'propertyValueRaw': 'Julius-Loßmann-Straße 11',
+            'propertyValueNormalized': 'julius lossmann strasse 11',
+          },
+        ],
+      });
+      return http.StreamedResponse(Stream.value(utf8.encode(body)), 200);
+    }
+
+    if (request.method == 'DELETE' &&
         request.url.path.endsWith('/v1/receipts/rcp_12345678901234')) {
       return http.StreamedResponse(Stream<List<int>>.empty(), 204);
     }
@@ -463,6 +559,9 @@ class _FakeBackendHttpClient extends http.BaseClient {
     final isCreate = request.method == 'POST' && !isRestart;
     final isMerchantCreate =
         request.method == 'POST' && request.url.path.endsWith('/v1/merchants');
+    final isCandidateList =
+        request.method == 'GET' &&
+        request.url.path.endsWith('/merchant-candidates');
     final isList =
         request.method == 'GET' &&
         request.url.path.endsWith('/v1/receipts') &&
@@ -480,6 +579,7 @@ class _FakeBackendHttpClient extends http.BaseClient {
                 'postCode': '10115',
                 'city': 'Berlin',
                 'taxId': 'DE999999999',
+                'matchProperties': const <Object?>[],
               },
               {
                 'id': 'mer_12345678901234',
@@ -488,6 +588,47 @@ class _FakeBackendHttpClient extends http.BaseClient {
                 'postCode': '90469',
                 'city': 'Nuernberg',
                 'taxId': 'DE123456789',
+                'matchProperties': [
+                  {
+                    'id': 1,
+                    'propertyType': 'merchant_name',
+                    'propertyValueRaw': 'LDL',
+                    'propertyValueNormalized': 'ldl',
+                  },
+                  {
+                    'id': 2,
+                    'propertyType': 'street',
+                    'propertyValueRaw': 'Julius-Loßmann-Straße 11',
+                    'propertyValueNormalized': 'julius lossmann strasse 11',
+                  },
+                ],
+              },
+            ]
+          : isCandidateList
+          ? [
+              {
+                'merchantId': 'mer_12345678901234',
+                'score': 0.73,
+                'merchant': {
+                  'id': 'mer_12345678901234',
+                  'name': 'Lidl',
+                  'street': 'Julius-Lossmann-Strasse 11',
+                  'postCode': '90469',
+                  'city': 'Nuernberg',
+                  'taxId': 'DE123456789',
+                },
+              },
+              {
+                'merchantId': 'mer_99999999999999',
+                'score': 0.13,
+                'merchant': {
+                  'id': 'mer_99999999999999',
+                  'name': 'Aldi',
+                  'street': 'Marktstrasse 1',
+                  'postCode': '10115',
+                  'city': 'Berlin',
+                  'taxId': 'DE999999999',
+                },
               },
             ]
           : isList
@@ -506,6 +647,7 @@ class _FakeBackendHttpClient extends http.BaseClient {
                 },
                 'merchantId': null,
                 'merchant': null,
+                'merchantAssignedType': 'unmatched',
                 'itemsCurrency': null,
                 'items': const <Object?>[],
                 'validationWarnings': const <Object?>[],
@@ -532,6 +674,7 @@ class _FakeBackendHttpClient extends http.BaseClient {
                   'city': 'Nuernberg',
                   'taxId': 'DE123456789',
                 },
+                'merchantAssignedType': 'manual',
                 'itemsCurrency': 'EUR',
                 'items': [
                   {
@@ -587,6 +730,7 @@ class _FakeBackendHttpClient extends http.BaseClient {
               'postCode': '90469',
               'city': 'Nuernberg',
               'taxId': requestedTaxId,
+              'matchProperties': const <Object?>[],
             }
           : (isCreate || isRestart) && !request.url.path.endsWith('/merchant')
           ? {
@@ -605,6 +749,7 @@ class _FakeBackendHttpClient extends http.BaseClient {
               },
               'merchantId': null,
               'merchant': null,
+              'merchantAssignedType': 'unmatched',
               'itemsCurrency': null,
               'items': const <Object?>[],
               'validationWarnings': const <Object?>[],
@@ -635,6 +780,144 @@ class _FakeBackendHttpClient extends http.BaseClient {
                 'city': 'Nuernberg',
                 'taxId': requestedTaxId,
               },
+              'merchantAssignedType': 'manual',
+              'itemsCurrency': 'EUR',
+              'items': [
+                {
+                  'id': 'itm_1',
+                  'itemNumber': 'SKU-1',
+                  'name': 'Milk',
+                  'totalPrice': 1.99,
+                  'quantity': 2,
+                  'category': 'FOOD',
+                },
+              ],
+              'validationWarnings': const <Object?>[],
+              'extraction': {
+                'requestId': 'ext_12345678901234',
+                'rawText': 'demo',
+                'ocr': {
+                  'rawText': 'demo',
+                  'blocks': <Object?>[],
+                  'lines': <Object?>[],
+                },
+                'structured': {
+                  'lineItems': null,
+                  'merchantInfo': null,
+                  'qrcode_tse_data': null,
+                },
+                'metadata': {
+                  'extractor': 'ris_extract_mock',
+                  'version': '0.1.0',
+                  'models': {
+                    'ocr': {
+                      'name': 'fixture',
+                      'textDetectionModel': 'fixture',
+                      'textRecognitionModel': 'fixture',
+                      'status': 'ok',
+                    },
+                    'llm': {
+                      'provider': 'openai',
+                      'model': 'gpt-5.4-nano',
+                      'status': 'missing_token',
+                    },
+                  },
+                  'runtime': {'python': 'dart', 'platform': 'test'},
+                },
+                'warnings': <Object?>[],
+              },
+            }
+          : request.method == 'PUT' &&
+                request.url.path.endsWith(
+                  '/v1/receipts/rcp_12345678901234/merchant',
+                )
+          ? {
+              'id': 'rcp_12345678901234',
+              'createdAt': '2026-05-12T20:17:12.345678Z',
+              'status': 'processed',
+              'extractRequestId': 'ext_12345678901234',
+              'image': {
+                'originalFileName': 'receipt-1.png',
+                'mimeType': 'image/png',
+                'storagePath': 'receipts/rcp_12345678901234/original.png',
+                'sha256': 'abc',
+                'sizeBytes': 123,
+              },
+              'merchantId': 'mer_12345678901234',
+              'merchant': {
+                'id': 'mer_12345678901234',
+                'name': 'Lidl',
+                'street': 'Julius-Lossmann-Strasse 11',
+                'postCode': '90469',
+                'city': 'Nuernberg',
+                'taxId': 'DE123456789',
+              },
+              'merchantAssignedType': 'manual',
+              'itemsCurrency': 'EUR',
+              'items': [
+                {
+                  'id': 'itm_1',
+                  'itemNumber': 'SKU-1',
+                  'name': 'Milk',
+                  'totalPrice': 1.99,
+                  'quantity': 2,
+                  'category': 'FOOD',
+                },
+              ],
+              'validationWarnings': const <Object?>[],
+              'extraction': {
+                'requestId': 'ext_12345678901234',
+                'rawText': 'demo',
+                'ocr': {
+                  'rawText': 'demo',
+                  'blocks': <Object?>[],
+                  'lines': <Object?>[],
+                },
+                'structured': {
+                  'lineItems': null,
+                  'merchantInfo': null,
+                  'qrcode_tse_data': null,
+                },
+                'metadata': {
+                  'extractor': 'ris_extract_mock',
+                  'version': '0.1.0',
+                  'models': {
+                    'ocr': {
+                      'name': 'fixture',
+                      'textDetectionModel': 'fixture',
+                      'textRecognitionModel': 'fixture',
+                      'status': 'ok',
+                    },
+                    'llm': {
+                      'provider': 'openai',
+                      'model': 'gpt-5.4-nano',
+                      'status': 'missing_token',
+                    },
+                  },
+                  'runtime': {'python': 'dart', 'platform': 'test'},
+                },
+                'warnings': <Object?>[],
+              },
+            }
+          : request.method == 'DELETE' &&
+                request.url.path.endsWith(
+                  '/v1/receipts/rcp_12345678901234/merchant',
+                )
+          ? {
+              'id': 'rcp_12345678901234',
+              'createdAt': '2026-05-12T20:17:12.345678Z',
+              'status': 'processed',
+              'extractRequestId': 'ext_12345678901234',
+              'image': {
+                'originalFileName': 'receipt-1.png',
+                'mimeType': 'image/png',
+                'storagePath': 'receipts/rcp_12345678901234/original.png',
+                'sha256': 'abc',
+                'sizeBytes': 123,
+              },
+              'merchantId': null,
+              'merchant': null,
+              'merchantAssignedType': 'unmatched',
               'itemsCurrency': 'EUR',
               'items': [
                 {
@@ -706,6 +989,7 @@ class _FakeBackendHttpClient extends http.BaseClient {
                 'city': 'Nuernberg',
                 'taxId': 'DE123456789',
               },
+              'merchantAssignedType': 'manual',
               'itemsCurrency': 'EUR',
               'items': [
                 {
@@ -766,6 +1050,20 @@ class _FakeBackendHttpClient extends http.BaseClient {
               'postCode': '90469',
               'city': 'Nuernberg',
               'taxId': 'DE123456789',
+              'matchProperties': [
+                {
+                  'id': 1,
+                  'propertyType': 'merchant_name',
+                  'propertyValueRaw': 'LDL',
+                  'propertyValueNormalized': 'ldl',
+                },
+                {
+                  'id': 2,
+                  'propertyType': 'street',
+                  'propertyValueRaw': 'Julius-Loßmann-Straße 11',
+                  'propertyValueNormalized': 'julius lossmann strasse 11',
+                },
+              ],
             }
           : {
               'id': 'rcp_12345678901234',
@@ -788,6 +1086,7 @@ class _FakeBackendHttpClient extends http.BaseClient {
                 'city': 'Nuernberg',
                 'taxId': 'DE123456789',
               },
+              'merchantAssignedType': 'manual',
               'itemsCurrency': 'EUR',
               'items': [
                 {
@@ -844,8 +1143,10 @@ class _FakeBackendHttpClient extends http.BaseClient {
 
     final statusCode = switch (request.method) {
       'POST' => isRestart ? 202 : 201,
+      'PUT' => 200,
       'PATCH' => 200,
       'GET' => 200,
+      'DELETE' => request.url.path.endsWith('/merchant') ? 200 : 204,
       _ => 500,
     };
 

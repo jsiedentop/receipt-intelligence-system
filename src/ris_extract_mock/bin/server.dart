@@ -127,6 +127,7 @@ Future<File> _resolveFixtureFile(String fileName) async {
   final fixtureName = switch (fileName) {
     'receipt-1.png' => 'recipe-1.json',
     'receipt-2.png' => 'recipe-2.json',
+    'receipt-3.png' => 'recipe-3.json',
     _ => throw FixtureNotFoundException(
       'No fixture mapping exists for file "$fileName".',
     ),

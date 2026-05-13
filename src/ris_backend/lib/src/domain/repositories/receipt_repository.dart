@@ -1,9 +1,19 @@
 import 'package:ris_core/ris_core.dart';
 
+import '../models/merchant_match.dart';
 import '../models/receipt.dart';
 
 abstract interface class ReceiptRepository {
   Future<void> create(Receipt receipt);
+
+  Future<void> createMerchantMatchProperties({
+    required MerchantId merchantId,
+    required List<MerchantMatchProperty> properties,
+  });
+
+  Future<List<MerchantCandidateScore>> scoreMerchantCandidates(
+    List<MerchantMatchProperty> properties,
+  );
 
   Future<Receipt> getById(ReceiptId receiptId);
 
@@ -53,7 +63,10 @@ abstract interface class ReceiptRepository {
   Future<void> assignMerchant({
     required ReceiptId receiptId,
     required MerchantId merchantId,
+    required MerchantAssignedType assignedType,
   });
+
+  Future<void> clearMerchantAssignment(ReceiptId receiptId);
 
   Future<bool> hasMerchantAssignment(MerchantId merchantId);
 

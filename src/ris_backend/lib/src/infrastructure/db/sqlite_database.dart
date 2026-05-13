@@ -15,6 +15,7 @@ class SqliteDatabase {
         status TEXT NOT NULL,
         extract_request_id TEXT NOT NULL,
         merchant_id TEXT,
+        merchant_assigned_type TEXT,
         items_currency TEXT
       );
     ''');
@@ -79,6 +80,17 @@ class SqliteDatabase {
         tax_id TEXT NOT NULL
       );
     ''');
+    database.execute('''
+      CREATE TABLE IF NOT EXISTS merchant_match_properties (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        merchant_id TEXT NOT NULL,
+        property_type TEXT NOT NULL,
+        property_value_raw TEXT NOT NULL,
+        property_value_normalized TEXT NOT NULL,
+        FOREIGN KEY (merchant_id) REFERENCES merchants(id) ON DELETE CASCADE,
+        UNIQUE (merchant_id, property_type, property_value_normalized)
+      );
+    ''');
 
     final receiptColumns = database
         .select('PRAGMA table_info(receipts);')
@@ -89,6 +101,11 @@ class SqliteDatabase {
     }
     if (!receiptColumns.contains('items_currency')) {
       database.execute('ALTER TABLE receipts ADD COLUMN items_currency TEXT;');
+    }
+    if (!receiptColumns.contains('merchant_assigned_type')) {
+      database.execute(
+        'ALTER TABLE receipts ADD COLUMN merchant_assigned_type TEXT;',
+      );
     }
 
     final merchantColumns = database
