@@ -186,7 +186,7 @@ class ReceiptHandler {
           street: _readRequiredString(payload, 'street'),
           postCode: _readRequiredString(payload, 'postCode'),
           city: _readRequiredString(payload, 'city'),
-          taxId: _readRequiredString(payload, 'taxId'),
+          taxId: _readNullableString(payload, 'taxId'),
         ),
       );
       final responseDto = _receiptResponseMapper.toDto(receipt);

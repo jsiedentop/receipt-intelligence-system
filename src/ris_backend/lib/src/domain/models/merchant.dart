@@ -15,7 +15,7 @@ class Merchant {
   final String street;
   final String postCode;
   final String city;
-  final String taxId;
+  final String? taxId;
 
   Map<String, Object?> toJson() {
     return {

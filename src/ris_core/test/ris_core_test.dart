@@ -146,6 +146,20 @@ void main() {
     expect(dto.city, 'Nuernberg');
   });
 
+  test('parses backend merchant response dto without tax id', () {
+    final dto = MerchantResponseDto.fromJson({
+      'id': 'mer_12345678901234',
+      'name': 'Lidl',
+      'street': 'Julius-Lossmann-Strasse 11',
+      'postCode': '90469',
+      'city': 'Nuernberg',
+      'taxId': null,
+    });
+
+    expect(dto.id.value, 'mer_12345678901234');
+    expect(dto.taxId, isNull);
+  });
+
   test('backend client parses create receipt responses', () async {
     final client = BackendClient(
       config: BackendClientConfig(baseUri: Uri.parse('http://localhost:8080')),
@@ -183,6 +197,24 @@ void main() {
     expect(response.city, 'Nuernberg');
   });
 
+  test('backend client allows creating merchants without tax id', () async {
+    final client = BackendClient(
+      config: BackendClientConfig(baseUri: Uri.parse('http://localhost:8080')),
+      httpClient: _FakeBackendHttpClient(),
+    );
+
+    final response = await client.createMerchant(
+      name: 'Lidl',
+      street: 'Julius-Lossmann-Strasse 11',
+      postCode: '90469',
+      city: 'Nuernberg',
+      taxId: null,
+    );
+
+    expect(response.id.value, 'mer_12345678901234');
+    expect(response.taxId, isNull);
+  });
+
   test('backend client parses get receipt responses', () async {
     final client = BackendClient(
       config: BackendClientConfig(baseUri: Uri.parse('http://localhost:8080')),
@@ -217,6 +249,30 @@ void main() {
     expect(response.merchantId?.value, 'mer_12345678901234');
     expect(response.merchant?.city, 'Nuernberg');
   });
+
+  test(
+    'backend client allows creating receipt merchant without tax id',
+    () async {
+      final client = BackendClient(
+        config: BackendClientConfig(
+          baseUri: Uri.parse('http://localhost:8080'),
+        ),
+        httpClient: _FakeBackendHttpClient(),
+      );
+
+      final response = await client.createMerchantForReceipt(
+        receiptId: ReceiptId('rcp_12345678901234'),
+        name: 'Lidl',
+        street: 'Julius-Lossmann-Strasse 11',
+        postCode: '90469',
+        city: 'Nuernberg',
+        taxId: null,
+      );
+
+      expect(response.merchantId?.value, 'mer_12345678901234');
+      expect(response.merchant?.taxId, isNull);
+    },
+  );
 
   test('backend client parses receipt item update responses', () async {
     final client = BackendClient(
@@ -382,6 +438,8 @@ class _FakeHttpClient extends http.BaseClient {
 class _FakeBackendHttpClient extends http.BaseClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final requestedTaxId = _readRequestTaxId(request);
+
     if (request.method == 'DELETE' &&
         request.url.path.endsWith('/v1/merchants/mer_12345678901234')) {
       return http.StreamedResponse(Stream<List<int>>.empty(), 204);
@@ -528,7 +586,7 @@ class _FakeBackendHttpClient extends http.BaseClient {
               'street': 'Julius-Lossmann-Strasse 11',
               'postCode': '90469',
               'city': 'Nuernberg',
-              'taxId': 'DE123456789',
+              'taxId': requestedTaxId,
             }
           : (isCreate || isRestart) && !request.url.path.endsWith('/merchant')
           ? {
@@ -575,7 +633,7 @@ class _FakeBackendHttpClient extends http.BaseClient {
                 'street': 'Julius-Lossmann-Strasse 11',
                 'postCode': '90469',
                 'city': 'Nuernberg',
-                'taxId': 'DE123456789',
+                'taxId': requestedTaxId,
               },
               'itemsCurrency': 'EUR',
               'items': [
@@ -793,4 +851,22 @@ class _FakeBackendHttpClient extends http.BaseClient {
 
     return http.StreamedResponse(Stream.value(utf8.encode(body)), statusCode);
   }
+}
+
+String? _readRequestTaxId(http.BaseRequest request) {
+  if (request is! http.Request) {
+    return 'DE123456789';
+  }
+
+  if (request.body.trim().isEmpty) {
+    return 'DE123456789';
+  }
+
+  final decoded = jsonDecode(request.body);
+  if (decoded is! Map) {
+    return 'DE123456789';
+  }
+
+  final value = decoded['taxId'];
+  return value is String ? value : null;
 }

@@ -11,7 +11,7 @@ abstract interface class ReceiptDetailRepository {
     required String street,
     required String postCode,
     required String city,
-    required String taxId,
+    required String? taxId,
   });
 
   Future<ReceiptResponseDto> updateReceiptItem({

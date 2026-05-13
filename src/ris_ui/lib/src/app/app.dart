@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../core/config/backend_config.dart';
 import '../core/theme/app_theme.dart';
+import '../core/widgets/app_shell.dart';
 import '../features/merchant_create/data/merchant_create_repository.dart';
 import '../features/merchant_create/data/ris_merchant_create_repository.dart';
 import '../features/merchant_detail/data/merchant_detail_repository.dart';
@@ -15,7 +16,6 @@ import '../features/receipt_upload/data/receipt_upload_repository.dart';
 import '../features/receipt_upload/data/ris_receipt_upload_repository.dart';
 import '../features/receipts_list/data/receipts_list_repository.dart';
 import '../features/receipts_list/data/ris_receipts_list_repository.dart';
-import 'router.dart';
 
 void bootstrapApp() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -55,8 +55,7 @@ class RisApp extends StatelessWidget {
         title: 'Receipt Intelligence System',
         debugShowCheckedModeBanner: false,
         theme: buildAppTheme(),
-        onGenerateRoute: generateRoute,
-        initialRoute: AppRoutePaths.receipts,
+        home: const AppShellHost(),
       ),
     );
   }

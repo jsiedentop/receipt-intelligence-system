@@ -15,53 +15,75 @@ abstract final class AppRoutePaths {
 }
 
 Route<dynamic> generateRoute(RouteSettings settings) {
-  final uri = Uri.parse(settings.name ?? AppRoutePaths.receipts);
-
-  if (uri.path == AppRoutePaths.receipts) {
-    return MaterialPageRoute<void>(
-      builder: (_) => const ReceiptsListScreen(),
-      settings: settings,
-    );
-  }
-
-  if (uri.path == AppRoutePaths.upload) {
-    return MaterialPageRoute<void>(
-      builder: (_) => const ReceiptUploadScreen(),
-      settings: settings,
-    );
-  }
-
-  if (uri.path == AppRoutePaths.merchants) {
-    return MaterialPageRoute<void>(
-      builder: (_) => const MerchantsListScreen(),
-      settings: settings,
-    );
-  }
-
-  if (uri.path == AppRoutePaths.merchantCreate) {
-    return MaterialPageRoute<void>(
-      builder: (_) => const MerchantCreateScreen(),
-      settings: settings,
-    );
-  }
-
-  if (uri.pathSegments.length == 2 && uri.pathSegments.first == 'receipts') {
-    return MaterialPageRoute<void>(
-      builder: (_) => ReceiptDetailScreen(receiptId: uri.pathSegments[1]),
-      settings: settings,
-    );
-  }
-
-  if (uri.pathSegments.length == 2 && uri.pathSegments.first == 'merchants') {
-    return MaterialPageRoute<void>(
-      builder: (_) => MerchantDetailScreen(merchantId: uri.pathSegments[1]),
-      settings: settings,
-    );
-  }
-
-  return MaterialPageRoute<void>(
-    builder: (_) =>
-        const Scaffold(body: Center(child: Text('Page not found.'))),
+  return buildNamedPageRoute(
+    settings.name ?? AppRoutePaths.receipts,
     settings: settings,
   );
+}
+
+Route<void> buildNamedPageRoute(
+  String routeName, {
+  RouteSettings? settings,
+  bool animated = true,
+}) {
+  final resolvedSettings = settings ?? RouteSettings(name: routeName);
+  final builder = buildRouteBuilder(routeName);
+
+  return PageRouteBuilder<void>(
+    settings: resolvedSettings,
+    transitionDuration: animated
+        ? const Duration(milliseconds: 220)
+        : Duration.zero,
+    reverseTransitionDuration: animated
+        ? const Duration(milliseconds: 220)
+        : Duration.zero,
+    pageBuilder: (context, animation, secondaryAnimation) => builder(context),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      if (!animated) {
+        return child;
+      }
+
+      final curvedAnimation = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      );
+
+      return FadeTransition(
+        opacity: curvedAnimation,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0.02, 0),
+            end: Offset.zero,
+          ).animate(curvedAnimation),
+          child: child,
+        ),
+      );
+    },
+  );
+}
+
+WidgetBuilder buildRouteBuilder(String routeName) {
+  final uri = Uri.parse(routeName);
+  late final WidgetBuilder builder;
+
+  if (uri.path == AppRoutePaths.receipts) {
+    builder = (_) => const ReceiptsListScreen();
+  } else if (uri.path == AppRoutePaths.upload) {
+    builder = (_) => const ReceiptUploadScreen();
+  } else if (uri.path == AppRoutePaths.merchants) {
+    builder = (_) => const MerchantsListScreen();
+  } else if (uri.path == AppRoutePaths.merchantCreate) {
+    builder = (_) => const MerchantCreateScreen();
+  } else if (uri.pathSegments.length == 2 &&
+      uri.pathSegments.first == 'receipts') {
+    builder = (_) => ReceiptDetailScreen(receiptId: uri.pathSegments[1]);
+  } else if (uri.pathSegments.length == 2 &&
+      uri.pathSegments.first == 'merchants') {
+    builder = (_) => MerchantDetailScreen(merchantId: uri.pathSegments[1]);
+  } else {
+    builder = (_) => const Scaffold(body: Center(child: Text('Page not found.')));
+  }
+
+  return builder;
 }

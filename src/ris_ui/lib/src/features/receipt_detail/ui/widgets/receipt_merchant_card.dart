@@ -16,7 +16,7 @@ class ReceiptMerchantCard extends StatefulWidget {
     required String street,
     required String postCode,
     required String city,
-    required String taxId,
+    required String? taxId,
   })
   onSave;
 
@@ -67,17 +67,39 @@ class _ReceiptMerchantCardState extends State<ReceiptMerchantCard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Assigned merchant',
-                style: Theme.of(context).textTheme.titleMedium,
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    'Assigned merchant',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  InkWell(
+                    onTap: () {
+                      Navigator.of(
+                        context,
+                      ).pushNamed('/merchants/${merchant.id.value}');
+                    },
+                    child: Text(
+                      '#${merchant.id.value}',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                        decoration: TextDecoration.underline,
+                        decorationColor: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
-              _MerchantValue(label: 'Merchant ID', value: merchant.id.value),
               _MerchantValue(label: 'Name', value: merchant.name),
               _MerchantValue(label: 'Street', value: merchant.street),
               _MerchantValue(label: 'Post code', value: merchant.postCode),
               _MerchantValue(label: 'City', value: merchant.city),
-              _MerchantValue(label: 'Tax ID', value: merchant.taxId),
+              if (merchant.taxId != null)
+                _MerchantValue(label: 'Tax ID', value: merchant.taxId!),
             ],
           ),
         ),
@@ -128,8 +150,9 @@ class _ReceiptMerchantCardState extends State<ReceiptMerchantCard> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _taxIdController,
-                decoration: const InputDecoration(labelText: 'Tax ID'),
-                validator: _required,
+                decoration: const InputDecoration(
+                  labelText: 'Tax ID (optional)',
+                ),
               ),
               const SizedBox(height: 16),
               Row(

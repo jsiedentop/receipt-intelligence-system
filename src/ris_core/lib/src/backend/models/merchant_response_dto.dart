@@ -15,7 +15,7 @@ class MerchantResponseDto {
   final String street;
   final String postCode;
   final String city;
-  final String taxId;
+  final String? taxId;
 
   factory MerchantResponseDto.fromJson(Map<String, dynamic> json) {
     return MerchantResponseDto(
@@ -24,7 +24,7 @@ class MerchantResponseDto {
       street: json['street'] as String,
       postCode: json['postCode'] as String,
       city: json['city'] as String,
-      taxId: json['taxId'] as String,
+      taxId: json['taxId'] as String?,
     );
   }
 

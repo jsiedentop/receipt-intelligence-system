@@ -55,15 +55,16 @@ class ReceiptItemsCard extends StatelessWidget {
               )
             else ...[
               const SizedBox(height: 8),
-              ...receipt.items.asMap().entries.map(
-                (entry) => EditableReceiptItemCard(
+              for (final entry in receipt.items.asMap().entries) ...[
+                if (entry.key > 0) const Divider(height: 16),
+                EditableReceiptItemCard(
                   index: entry.key,
                   item: entry.value,
                   currency: receipt.itemsCurrency,
                   isSaving: isUpdatingItem(entry.value.id),
                   onSave: onSaveItem,
                 ),
-              ),
+              ],
             ],
           ],
         ),

@@ -66,7 +66,7 @@ class _MerchantCreateViewState extends State<_MerchantCreateView> {
                         ),
                         const SizedBox(height: 12),
                         const Text(
-                          'Create a merchant with the required address and tax identification fields.',
+                          'Create a merchant with the required address fields. Tax ID is optional.',
                         ),
                         const SizedBox(height: 24),
                         TextFormField(
@@ -100,9 +100,8 @@ class _MerchantCreateViewState extends State<_MerchantCreateView> {
                         TextFormField(
                           controller: _taxIdController,
                           decoration: const InputDecoration(
-                            labelText: 'Tax ID',
+                            labelText: 'Tax ID (optional)',
                           ),
-                          validator: _required,
                         ),
                         if (controller.errorMessage != null) ...[
                           const SizedBox(height: 18),

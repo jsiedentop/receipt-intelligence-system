@@ -38,23 +38,19 @@ class _MerchantsListView extends StatelessWidget {
               onPressed: controller.load,
               icon: const Icon(Icons.refresh),
             ),
-            const SizedBox(width: 8),
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: FilledButton.icon(
-                onPressed: () async {
-                  await Navigator.of(
-                    context,
-                  ).pushNamed(AppRoutePaths.merchantCreate);
-                  if (context.mounted) {
-                    await controller.load();
-                  }
-                },
-                icon: const Icon(Icons.storefront_outlined),
-                label: const Text('Add merchant'),
-              ),
-            ),
           ],
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () async {
+              await Navigator.of(
+                context,
+              ).pushNamed(AppRoutePaths.merchantCreate);
+              if (context.mounted) {
+                await controller.load();
+              }
+            },
+            icon: const Icon(Icons.storefront_outlined),
+            label: const Text('Create'),
+          ),
           body: AppAsyncView(
             isLoading: controller.isLoading,
             errorMessage: controller.errorMessage,
@@ -100,11 +96,15 @@ class _MerchantsListView extends StatelessWidget {
                                 const SizedBox(height: 10),
                                 Text(merchant.street),
                                 Text('${merchant.postCode} ${merchant.city}'),
-                                const SizedBox(height: 10),
-                                Text(
-                                  'Tax ID: ${merchant.taxId}',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
+                                if (merchant.taxId != null) ...[
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    'Tax ID: ${merchant.taxId}',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                  ),
+                                ],
                               ],
                             ),
                           ),

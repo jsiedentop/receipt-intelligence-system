@@ -24,7 +24,7 @@ class SqliteMerchantRepository implements MerchantRepository {
           merchant.street,
           merchant.postCode,
           merchant.city,
-          merchant.taxId,
+          merchant.taxId ?? '',
         ],
       );
     } catch (error) {
@@ -94,7 +94,12 @@ class SqliteMerchantRepository implements MerchantRepository {
       street: row['street'] as String,
       postCode: row['post_code'] as String,
       city: row['city'] as String,
-      taxId: row['tax_id'] as String,
+      taxId: _nullableTaxId(row['tax_id'] as String),
     );
   }
+}
+
+String? _nullableTaxId(String value) {
+  final trimmed = value.trim();
+  return trimmed.isEmpty ? null : trimmed;
 }

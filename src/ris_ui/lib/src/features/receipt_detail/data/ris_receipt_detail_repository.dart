@@ -19,7 +19,7 @@ class RisReceiptDetailRepository implements ReceiptDetailRepository {
     required String street,
     required String postCode,
     required String city,
-    required String taxId,
+    required String? taxId,
   }) {
     return _backendClient.createMerchantForReceipt(
       receiptId: receiptId,

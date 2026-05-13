@@ -32,7 +32,7 @@ class CreateMerchantForReceiptUseCase {
     final street = command.street.trim();
     final postCode = command.postCode.trim();
     final city = command.city.trim();
-    final taxId = command.taxId.trim();
+    final taxId = _normalizeNullable(command.taxId);
 
     if (name.isEmpty) {
       throw ValidationException('Field "name" must not be empty.');
@@ -46,10 +46,6 @@ class CreateMerchantForReceiptUseCase {
     if (city.isEmpty) {
       throw ValidationException('Field "city" must not be empty.');
     }
-    if (taxId.isEmpty) {
-      throw ValidationException('Field "taxId" must not be empty.');
-    }
-
     final merchant = Merchant(
       id: MerchantId.create(),
       name: name,
@@ -66,4 +62,13 @@ class CreateMerchantForReceiptUseCase {
     );
     return _receiptRepository.getById(receiptId);
   }
+}
+
+String? _normalizeNullable(String? value) {
+  if (value == null) {
+    return null;
+  }
+
+  final trimmed = value.trim();
+  return trimmed.isEmpty ? null : trimmed;
 }

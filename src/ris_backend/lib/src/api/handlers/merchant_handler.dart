@@ -38,7 +38,7 @@ class MerchantHandler {
           street: _readRequiredString(payload, 'street'),
           postCode: _readRequiredString(payload, 'postCode'),
           city: _readRequiredString(payload, 'city'),
-          taxId: _readRequiredString(payload, 'taxId'),
+          taxId: _readNullableString(payload, 'taxId'),
         ),
       );
       final responseDto = _merchantResponseMapper.toDto(merchant);
@@ -133,6 +133,18 @@ class MerchantHandler {
     final value = payload[fieldName];
     if (value is! String) {
       throw ValidationException('Field "$fieldName" must be a string.');
+    }
+
+    return value;
+  }
+
+  String? _readNullableString(Map<String, dynamic> payload, String fieldName) {
+    final value = payload[fieldName];
+    if (value == null) {
+      return null;
+    }
+    if (value is! String) {
+      throw ValidationException('Field "$fieldName" must be a string or null.');
     }
 
     return value;

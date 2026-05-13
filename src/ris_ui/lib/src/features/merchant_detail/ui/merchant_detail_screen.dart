@@ -140,10 +140,11 @@ class _MerchantDetailView extends StatelessWidget {
                                 label: 'City',
                                 value: merchant.city,
                               ),
-                              _MerchantField(
-                                label: 'Tax ID',
-                                value: merchant.taxId,
-                              ),
+                              if (merchant.taxId != null)
+                                _MerchantField(
+                                  label: 'Tax ID',
+                                  value: merchant.taxId!,
+                                ),
                             ],
                           ),
                         ),

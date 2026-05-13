@@ -6,6 +6,6 @@ abstract interface class MerchantCreateRepository {
     required String street,
     required String postCode,
     required String city,
-    required String taxId,
+    required String? taxId,
   });
 }

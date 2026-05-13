@@ -31,14 +31,14 @@ Purpose:
 
 Request body:
 - `application/json`
+- `taxId` is optional and may be omitted or set to `null`
 
 ```json
 {
   "name": "Lidl",
   "street": "Julius-Lossmann-Strasse 11",
   "postCode": "90469",
-  "city": "Nuernberg",
-  "taxId": "DE123456789"
+  "city": "Nuernberg"
 }
 ```
 
@@ -57,7 +57,7 @@ Example response:
   "street": "Julius-Lossmann-Strasse 11",
   "postCode": "90469",
   "city": "Nuernberg",
-  "taxId": "DE123456789"
+  "taxId": null
 }
 ```
 
@@ -210,14 +210,14 @@ Purpose:
 
 Request body:
 - `application/json`
+- `taxId` is optional and may be omitted or set to `null`
 
 ```json
 {
   "name": "Lidl",
   "street": "Julius-Lossmann-Strasse 11",
   "postCode": "90469",
-  "city": "Nuernberg",
-  "taxId": "DE123456789"
+  "city": "Nuernberg"
 }
 ```
 
@@ -395,7 +395,7 @@ Current response shape:
 | `street` | string | Merchant street address. |
 | `postCode` | string | Merchant postal code. |
 | `city` | string | Merchant city. |
-| `taxId` | string | Merchant tax identifier. |
+| `taxId` | string or `null` | Merchant tax identifier when available. |
 
 ### Receipt
 
@@ -422,7 +422,7 @@ Current response shape:
 | `street` | string | Merchant street address. |
 | `postCode` | string | Merchant postal code. |
 | `city` | string | Merchant city. |
-| `taxId` | string | Merchant tax identifier. |
+| `taxId` | string or `null` | Merchant tax identifier when available. |
 
 ### `image`
 

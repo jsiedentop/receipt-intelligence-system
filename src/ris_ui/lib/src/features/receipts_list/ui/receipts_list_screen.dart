@@ -39,21 +39,17 @@ class _ReceiptsListView extends StatelessWidget {
               onPressed: controller.refresh,
               icon: const Icon(Icons.refresh),
             ),
-            const SizedBox(width: 8),
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: FilledButton.icon(
-                onPressed: () async {
-                  await Navigator.of(context).pushNamed(AppRoutePaths.upload);
-                  if (context.mounted) {
-                    await controller.refresh();
-                  }
-                },
-                icon: const Icon(Icons.upload_file),
-                label: const Text('Upload'),
-              ),
-            ),
           ],
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () async {
+              await Navigator.of(context).pushNamed(AppRoutePaths.upload);
+              if (context.mounted) {
+                await controller.refresh();
+              }
+            },
+            icon: const Icon(Icons.upload_file),
+            label: const Text('Upload'),
+          ),
           body: AppAsyncView(
             isLoading: controller.isInitialLoading,
             errorMessage: controller.errorMessage,

@@ -22,7 +22,7 @@ class MerchantCreateController extends ChangeNotifier {
     required String street,
     required String postCode,
     required String city,
-    required String taxId,
+    required String? taxId,
   }) async {
     if (_isSubmitting) {
       return false;

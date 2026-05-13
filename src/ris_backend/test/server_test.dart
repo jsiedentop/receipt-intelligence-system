@@ -85,6 +85,24 @@ void main() {
     expect(body['taxId'], 'DE123456789');
   });
 
+  test('creates merchant without tax id', () async {
+    final response = await http.post(
+      backendBaseUri.resolve('/v1/merchants'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'name': 'Lidl',
+        'street': 'Julius-Lossmann-Strasse 11',
+        'postCode': '90469',
+        'city': 'Nuernberg',
+        'taxId': null,
+      }),
+    );
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+
+    expect(response.statusCode, 201);
+    expect(body['taxId'], isNull);
+  });
+
   test('gets merchant by id', () async {
     final createResponse = await http.post(
       backendBaseUri.resolve('/v1/merchants'),
@@ -137,6 +155,34 @@ void main() {
     expect(assignResponse.statusCode, 201);
     expect(assignedBody['merchantId'], startsWith('mer_'));
     expect((assignedBody['merchant'] as Map<String, dynamic>)['name'], 'Lidl');
+  });
+
+  test('creates merchant for receipt without tax id', () async {
+    final createReceiptResponse = await _uploadFile(
+      backendBaseUri.resolve('/v1/receipts'),
+      '../../data/receipt-1.png',
+      contentType: MediaType('image', 'png'),
+    );
+    final createdReceipt =
+        jsonDecode(createReceiptResponse.body) as Map<String, dynamic>;
+    final receiptId = createdReceipt['id'] as String;
+
+    final assignResponse = await http.post(
+      backendBaseUri.resolve('/v1/receipts/$receiptId/merchant'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'name': 'Lidl',
+        'street': 'Julius-Lossmann-Strasse 11',
+        'postCode': '90469',
+        'city': 'Nuernberg',
+        'taxId': null,
+      }),
+    );
+    final assignedBody =
+        jsonDecode(assignResponse.body) as Map<String, dynamic>;
+
+    expect(assignResponse.statusCode, 201);
+    expect((assignedBody['merchant'] as Map<String, dynamic>)['taxId'], isNull);
   });
 
   test('returns 409 when assigning a second merchant to receipt', () async {
@@ -600,6 +646,46 @@ void main() {
       (pageOneBody[1] as Map<String, dynamic>)['createdAt'] as String,
     );
     expect(firstCreatedAt.isAfter(secondCreatedAt), isTrue);
+  });
+
+  test('lists receipts with assigned merchant snapshot', () async {
+    final createReceiptResponse = await _uploadFile(
+      backendBaseUri.resolve('/v1/receipts'),
+      '../../data/receipt-1.png',
+      contentType: MediaType('image', 'png'),
+    );
+    final createdReceipt =
+        jsonDecode(createReceiptResponse.body) as Map<String, dynamic>;
+    final receiptId = createdReceipt['id'] as String;
+
+    final assignResponse = await http.post(
+      backendBaseUri.resolve('/v1/receipts/$receiptId/merchant'),
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({
+        'name': 'Lidl',
+        'street': 'Julius-Lossmann-Strasse 11',
+        'postCode': '90469',
+        'city': 'Nuernberg',
+        'taxId': 'DE123456789',
+      }),
+    );
+    final assignedReceipt =
+        jsonDecode(assignResponse.body) as Map<String, dynamic>;
+
+    final listResponse = await http.get(
+      backendBaseUri.resolve('/v1/receipts?page=1&pageSize=20'),
+    );
+    final listedReceipts = jsonDecode(listResponse.body) as List<dynamic>;
+    final listedReceipt =
+        listedReceipts.singleWhere(
+              (entry) => (entry as Map<String, dynamic>)['id'] == receiptId,
+            )
+            as Map<String, dynamic>;
+
+    expect(listResponse.statusCode, 200);
+    expect(listedReceipt['merchantId'], assignedReceipt['merchantId']);
+    expect(listedReceipt['merchant'], isA<Map<String, dynamic>>());
+    expect((listedReceipt['merchant'] as Map<String, dynamic>)['name'], 'Lidl');
   });
 
   test('returns 400 for invalid receipt list pagination parameters', () async {

@@ -78,7 +78,7 @@ class BackendClient {
     required String street,
     required String postCode,
     required String city,
-    required String taxId,
+    required String? taxId,
   }) async {
     final response = await _sendPostJson(
       '/v1/merchants',
@@ -151,7 +151,7 @@ class BackendClient {
     required String street,
     required String postCode,
     required String city,
-    required String taxId,
+    required String? taxId,
   }) async {
     final response = await _sendPostJson(
       '/v1/receipts/${receiptId.value}/merchant',

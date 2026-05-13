@@ -266,7 +266,7 @@ class SqliteReceiptRepository implements ReceiptRepository {
               merchantId: row['merchant_id'] == null
                   ? null
                   : MerchantId(row['merchant_id'] as String),
-              merchant: null,
+              merchant: _selectAssignedMerchant(row['merchant_id'] as String?),
               itemsCurrency: null,
               items: const <ReceiptItem>[],
               validationWarnings: const <ReceiptValidationWarning>[],
@@ -325,7 +325,7 @@ class SqliteReceiptRepository implements ReceiptRepository {
               merchantId: row['merchant_id'] == null
                   ? null
                   : MerchantId(row['merchant_id'] as String),
-              merchant: null,
+              merchant: _selectAssignedMerchant(row['merchant_id'] as String?),
               itemsCurrency: _selectItemsCurrency(receiptId),
               items: _selectItems(receiptId),
               validationWarnings: _selectValidationWarnings(receiptId),
@@ -601,7 +601,7 @@ class SqliteReceiptRepository implements ReceiptRepository {
       street: row['street'] as String,
       postCode: row['post_code'] as String,
       city: row['city'] as String,
-      taxId: row['tax_id'] as String,
+      taxId: _nullableTaxId(row['tax_id'] as String),
     );
   }
 
@@ -822,6 +822,11 @@ class SqliteReceiptRepository implements ReceiptRepository {
       // Ignore rollback errors.
     }
   }
+}
+
+String? _nullableTaxId(String value) {
+  final trimmed = value.trim();
+  return trimmed.isEmpty ? null : trimmed;
 }
 
 Map<String, dynamic> _decodeJsonMap(String value) {
