@@ -3,7 +3,7 @@
 ### Documentation
 
 - [Initial Requirements](docs/requirements.md)
-- [Project Specification](docs/spec.md)
+- [Project Specification](docs/specs.md)
 - [Architecture Decision Record](docs/adr.md)
 
 ### Docker Compose
