@@ -9,7 +9,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from ris_extract import SUPPORTED_SUFFIXES, extract_receipt
 
 
-app = FastAPI(title="ris_extract_donut", version="0.2.0")
+app = FastAPI(title="ris_extract", version="0.3.0")
 
 
 @app.get("/healthz")

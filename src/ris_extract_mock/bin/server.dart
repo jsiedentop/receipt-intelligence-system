@@ -32,6 +32,26 @@ Future<Response> _extractHandler(Request request) async {
     final fixtureJson =
         jsonDecode(await fixtureFile.readAsString()) as Map<String, dynamic>;
     fixtureJson['requestId'] = upload.requestId.value;
+    fixtureJson.putIfAbsent('structured', () {
+      return {
+        'lineItems': null,
+        'merchantInfo': null,
+        'qrcode_tse_data': null,
+      };
+    });
+    final metadata = fixtureJson['metadata'];
+    if (metadata is Map<String, dynamic>) {
+      final models = metadata['models'];
+      if (models is Map<String, dynamic>) {
+        models.putIfAbsent('llm', () {
+          return {
+            'provider': 'openai',
+            'model': 'gpt-5.4-nano',
+            'status': 'missing_token',
+          };
+        });
+      }
+    }
     return Response.ok(
       jsonEncode(fixtureJson),
       headers: {'content-type': 'application/json'},

@@ -89,6 +89,7 @@ class ReceiptExtractionDto {
     required this.requestId,
     required this.rawText,
     required this.ocr,
+    required this.structured,
     required this.metadata,
     required this.warnings,
   });
@@ -96,6 +97,7 @@ class ReceiptExtractionDto {
   final ExtractRequestId requestId;
   final String rawText;
   final ExtractOcr ocr;
+  final ExtractStructured structured;
   final ExtractMetadata metadata;
   final List<Object?> warnings;
 
@@ -104,6 +106,9 @@ class ReceiptExtractionDto {
       requestId: ExtractRequestId(json['requestId'] as String),
       rawText: json['rawText'] as String,
       ocr: ExtractOcr.fromJson(_asJsonMap(json['ocr'], 'ocr')),
+      structured: ExtractStructured.fromJson(
+        _asJsonMap(json['structured'] ?? const <String, Object?>{}, 'structured'),
+      ),
       metadata: ExtractMetadata.fromJson(_asJsonMap(json['metadata'], 'metadata')),
       warnings: List<Object?>.from(json['warnings'] as List? ?? const <Object?>[]),
     );
@@ -114,6 +119,7 @@ class ReceiptExtractionDto {
       'requestId': requestId.value,
       'rawText': rawText,
       'ocr': ocr.toJson(),
+      'structured': structured.toJson(),
       'metadata': metadata.toJson(),
       'warnings': warnings,
     };

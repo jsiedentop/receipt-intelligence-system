@@ -17,6 +17,8 @@ void main() {
     expect(response.source.fileName, 'tmp80blzw3o.png');
     expect(response.ocr.blocks, isNotEmpty);
     expect(response.metadata.extractor, 'ris_extract_donut');
+    expect(response.structured.lineItems, isNull);
+    expect(response.metadata.models.llm?.status, 'missing_token');
   });
 
   test('extract client parses successful JSON responses', () async {
@@ -34,6 +36,7 @@ void main() {
 
     expect(response.requestId.value, 'ext_fake');
     expect(response.metadata.extractor, 'ris_extract_mock');
+    expect(response.structured.qrcodeTseData, isNull);
   });
 
   test('parses backend receipt response dto', () {
@@ -53,6 +56,11 @@ void main() {
         'requestId': 'ext_12345678901234',
         'rawText': 'demo',
         'ocr': {'rawText': 'demo', 'blocks': <Object?>[], 'lines': <Object?>[]},
+        'structured': {
+          'lineItems': null,
+          'merchantInfo': null,
+          'qrcode_tse_data': null,
+        },
         'metadata': {
           'extractor': 'ris_extract_mock',
           'version': '0.1.0',
@@ -62,6 +70,11 @@ void main() {
               'textDetectionModel': 'fixture',
               'textRecognitionModel': 'fixture',
               'status': 'ok',
+            },
+            'llm': {
+              'provider': 'openai',
+              'model': 'gpt-5.4-nano',
+              'status': 'missing_token',
             },
           },
           'runtime': {'python': 'dart', 'platform': 'test'},
@@ -73,6 +86,7 @@ void main() {
     expect(dto.id.value, 'rcp_12345678901234');
     expect(dto.extractRequestId.value, 'ext_12345678901234');
     expect(dto.extraction!.requestId.value, 'ext_12345678901234');
+    expect(dto.extraction!.structured.lineItems, isNull);
   });
 
   test('backend client parses create receipt responses', () async {
@@ -181,6 +195,11 @@ class _FakeHttpClient extends http.BaseClient {
       },
       'warnings': <Object?>[],
       'ocr': {'rawText': 'demo', 'blocks': <Object?>[], 'lines': <Object?>[]},
+      'structured': {
+        'lineItems': null,
+        'merchantInfo': null,
+        'qrcode_tse_data': null,
+      },
       'metadata': {
         'extractor': 'ris_extract_mock',
         'version': '0.1.0',
@@ -190,6 +209,11 @@ class _FakeHttpClient extends http.BaseClient {
             'textDetectionModel': 'fixture',
             'textRecognitionModel': 'fixture',
             'status': 'ok',
+          },
+          'llm': {
+            'provider': 'openai',
+            'model': 'gpt-5.4-nano',
+            'status': 'missing_token',
           },
         },
         'runtime': {'python': 'dart', 'platform': 'test'},
@@ -256,6 +280,11 @@ class _FakeBackendHttpClient extends http.BaseClient {
                   'requestId': 'ext_12345678901234',
                   'rawText': 'demo',
                   'ocr': {'rawText': 'demo', 'blocks': <Object?>[], 'lines': <Object?>[]},
+                  'structured': {
+                    'lineItems': null,
+                    'merchantInfo': null,
+                    'qrcode_tse_data': null,
+                  },
                   'metadata': {
                     'extractor': 'ris_extract_mock',
                     'version': '0.1.0',
@@ -265,6 +294,11 @@ class _FakeBackendHttpClient extends http.BaseClient {
                         'textDetectionModel': 'fixture',
                         'textRecognitionModel': 'fixture',
                         'status': 'ok',
+                      },
+                      'llm': {
+                        'provider': 'openai',
+                        'model': 'gpt-5.4-nano',
+                        'status': 'missing_token',
                       },
                     },
                     'runtime': {'python': 'dart', 'platform': 'test'},
@@ -306,6 +340,11 @@ class _FakeBackendHttpClient extends http.BaseClient {
                     'requestId': 'ext_12345678901234',
                     'rawText': 'demo',
                     'ocr': {'rawText': 'demo', 'blocks': <Object?>[], 'lines': <Object?>[]},
+                    'structured': {
+                      'lineItems': null,
+                      'merchantInfo': null,
+                      'qrcode_tse_data': null,
+                    },
                     'metadata': {
                       'extractor': 'ris_extract_mock',
                       'version': '0.1.0',
@@ -315,6 +354,11 @@ class _FakeBackendHttpClient extends http.BaseClient {
                           'textDetectionModel': 'fixture',
                           'textRecognitionModel': 'fixture',
                           'status': 'ok',
+                        },
+                        'llm': {
+                          'provider': 'openai',
+                          'model': 'gpt-5.4-nano',
+                          'status': 'missing_token',
                         },
                       },
                       'runtime': {'python': 'dart', 'platform': 'test'},

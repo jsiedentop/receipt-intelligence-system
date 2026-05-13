@@ -1,10 +1,15 @@
 ## ris_extract
 
-Small OCR-only endpoint for receipt images. There is no structured parsing yet, the output only contains raw OCR data:  
+OCR extraction service for receipt images with optional structured parsing through OpenAI Responses API.
+
+Current output includes:
 
 - `ocr.rawText`
 - `ocr.blocks`
 - `ocr.lines`
+- `structured.lineItems`
+- `structured.merchantInfo`
+- `structured.qrcode_tse_data`
 
 ## Setup
 
@@ -16,6 +21,14 @@ source venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
+
+Optional environment:
+
+```bash
+export OPEN_AI_TOKEN=your-token
+```
+
+If `OPEN_AI_TOKEN` is not set, OCR still works and the service returns warnings instead of failing the whole extraction.
 
 ## CLI
 
@@ -51,6 +64,13 @@ curl -X POST http://localhost:8081/v1/extractions \
   -F "file=@../../data/receipt-1.png"
 ```
 
+## Notes
+
+- The service uses `ocr.lines[].text` as prompt text for OpenAI.
+- If a TSE QR code is found, the raw TSE payload is added to both structured extraction prompts.
+- Only TSE QR payloads in the MVP format `V0;...;Kassenbeleg-V1;...` are parsed.
+- Generic QR codes are ignored.
+
 ## Docker
 
 Build:
@@ -62,5 +82,5 @@ docker build -t ris_extract .
 Run:
 
 ```bash
-docker run --rm -p 8081:8081 -v ./.model-cache:/root/.paddlex ris_extract
+docker run --rm -p 8081:8081 -v ./.model-cache:/root/.paddlex -e OPEN_AI_TOKEN="$OPEN_AI_TOKEN" ris_extract
 ```

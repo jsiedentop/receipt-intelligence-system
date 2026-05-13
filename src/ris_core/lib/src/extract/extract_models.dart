@@ -10,6 +10,7 @@ class ExtractResponse {
     required this.source,
     required this.warnings,
     required this.ocr,
+    required this.structured,
     required this.metadata,
   });
 
@@ -17,6 +18,7 @@ class ExtractResponse {
   final ExtractSource source;
   final List<Object?> warnings;
   final ExtractOcr ocr;
+  final ExtractStructured structured;
   final ExtractMetadata metadata;
 
   factory ExtractResponse.fromJson(JsonMap json) {
@@ -25,6 +27,9 @@ class ExtractResponse {
       source: ExtractSource.fromJson(_asJsonMap(json['source'], 'source')),
       warnings: List<Object?>.from(json['warnings'] as List? ?? const <Object?>[]),
       ocr: ExtractOcr.fromJson(_asJsonMap(json['ocr'], 'ocr')),
+      structured: ExtractStructured.fromJson(
+        _asJsonMap(json['structured'] ?? const <String, Object?>{}, 'structured'),
+      ),
       metadata: ExtractMetadata.fromJson(
         _asJsonMap(json['metadata'], 'metadata'),
       ),
@@ -43,6 +48,7 @@ class ExtractResponse {
       'source': source.toJson(),
       'warnings': warnings,
       'ocr': ocr.toJson(),
+      'structured': structured.toJson(),
       'metadata': metadata.toJson(),
     };
   }
@@ -104,6 +110,255 @@ class ExtractOcr {
   }
 }
 
+class ExtractStructured {
+  const ExtractStructured({
+    required this.lineItems,
+    required this.merchantInfo,
+    required this.qrcodeTseData,
+  });
+
+  final ExtractLineItems? lineItems;
+  final ExtractMerchantInfo? merchantInfo;
+  final ExtractQrcodeTseData? qrcodeTseData;
+
+  factory ExtractStructured.fromJson(JsonMap json) {
+    return ExtractStructured(
+      lineItems: json['lineItems'] == null
+          ? null
+          : ExtractLineItems.fromJson(_asJsonMap(json['lineItems'], 'structured.lineItems')),
+      merchantInfo: json['merchantInfo'] == null
+          ? null
+          : ExtractMerchantInfo.fromJson(
+              _asJsonMap(json['merchantInfo'], 'structured.merchantInfo'),
+            ),
+      qrcodeTseData: json['qrcode_tse_data'] == null
+          ? null
+          : ExtractQrcodeTseData.fromJson(
+              _asJsonMap(json['qrcode_tse_data'], 'structured.qrcode_tse_data'),
+            ),
+    );
+  }
+
+  JsonMap toJson() {
+    return {
+      'lineItems': lineItems?.toJson(),
+      'merchantInfo': merchantInfo?.toJson(),
+      'qrcode_tse_data': qrcodeTseData?.toJson(),
+    };
+  }
+}
+
+class ExtractLineItems {
+  const ExtractLineItems({
+    required this.totalAmount,
+    required this.currency,
+    required this.items,
+  });
+
+  final double? totalAmount;
+  final String? currency;
+  final List<ExtractLineItem> items;
+
+  factory ExtractLineItems.fromJson(JsonMap json) {
+    final items = json['items'] as List? ?? const <Object?>[];
+    return ExtractLineItems(
+      totalAmount: _asNullableDouble(json['total_amount']),
+      currency: json['currency'] as String?,
+      items: items
+          .map(
+            (entry) => ExtractLineItem.fromJson(
+              _asJsonMap(entry, 'structured.lineItems.items[]'),
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+
+  JsonMap toJson() {
+    return {
+      'total_amount': totalAmount,
+      'currency': currency,
+      'items': items.map((item) => item.toJson()).toList(),
+    };
+  }
+}
+
+class ExtractLineItem {
+  const ExtractLineItem({
+    required this.name,
+    required this.totalPrice,
+    required this.category,
+    required this.itemNumber,
+    required this.quantity,
+  });
+
+  final String? name;
+  final double? totalPrice;
+  final String? category;
+  final String? itemNumber;
+  final int? quantity;
+
+  factory ExtractLineItem.fromJson(JsonMap json) {
+    return ExtractLineItem(
+      name: json['name'] as String?,
+      totalPrice: _asNullableDouble(json['total_price']),
+      category: json['category'] as String?,
+      itemNumber: json['item_number'] as String?,
+      quantity: json['quantity'] as int?,
+    );
+  }
+
+  JsonMap toJson() {
+    return {
+      'name': name,
+      'total_price': totalPrice,
+      'category': category,
+      'item_number': itemNumber,
+      'quantity': quantity,
+    };
+  }
+}
+
+class ExtractMerchantInfo {
+  const ExtractMerchantInfo({
+    required this.city,
+    required this.postCode,
+    required this.street,
+    required this.ustid,
+    required this.tseSerialNumber,
+    required this.dateTime,
+  });
+
+  final String? city;
+  final String? postCode;
+  final String? street;
+  final String? ustid;
+  final String? tseSerialNumber;
+  final String? dateTime;
+
+  factory ExtractMerchantInfo.fromJson(JsonMap json) {
+    return ExtractMerchantInfo(
+      city: json['city'] as String?,
+      postCode: json['post_code'] as String?,
+      street: json['street'] as String?,
+      ustid: json['ustid'] as String?,
+      tseSerialNumber: json['tse_serial_number'] as String?,
+      dateTime: json['datetime'] as String?,
+    );
+  }
+
+  JsonMap toJson() {
+    return {
+      'city': city,
+      'post_code': postCode,
+      'street': street,
+      'ustid': ustid,
+      'tse_serial_number': tseSerialNumber,
+      'datetime': dateTime,
+    };
+  }
+}
+
+class ExtractQrcodeTseData {
+  const ExtractQrcodeTseData({
+    required this.rawText,
+    required this.format,
+    required this.isTseQr,
+    required this.parsed,
+  });
+
+  final String rawText;
+  final String format;
+  final bool isTseQr;
+  final ExtractParsedQrcodeTseData? parsed;
+
+  factory ExtractQrcodeTseData.fromJson(JsonMap json) {
+    return ExtractQrcodeTseData(
+      rawText: json['raw_text'] as String,
+      format: json['format'] as String,
+      isTseQr: json['is_tse_qr'] as bool,
+      parsed: json['parsed'] == null
+          ? null
+          : ExtractParsedQrcodeTseData.fromJson(
+              _asJsonMap(json['parsed'], 'structured.qrcode_tse_data.parsed'),
+            ),
+    );
+  }
+
+  JsonMap toJson() {
+    return {
+      'raw_text': rawText,
+      'format': format,
+      'is_tse_qr': isTseQr,
+      'parsed': parsed?.toJson(),
+    };
+  }
+}
+
+class ExtractParsedQrcodeTseData {
+  const ExtractParsedQrcodeTseData({
+    required this.version,
+    required this.tssSerialNumber,
+    required this.receiptType,
+    required this.processData,
+    required this.transactionNumber,
+    required this.signatureCounter,
+    required this.timeStart,
+    required this.timeEnd,
+    required this.signatureAlgorithm,
+    required this.timestampFormat,
+    required this.signature,
+    required this.publicKey,
+  });
+
+  final String version;
+  final String tssSerialNumber;
+  final String receiptType;
+  final String processData;
+  final String transactionNumber;
+  final String signatureCounter;
+  final String timeStart;
+  final String timeEnd;
+  final String signatureAlgorithm;
+  final String timestampFormat;
+  final String signature;
+  final String publicKey;
+
+  factory ExtractParsedQrcodeTseData.fromJson(JsonMap json) {
+    return ExtractParsedQrcodeTseData(
+      version: json['version'] as String,
+      tssSerialNumber: json['tss_serial_number'] as String,
+      receiptType: json['receipt_type'] as String,
+      processData: json['process_data'] as String,
+      transactionNumber: json['transaction_number'] as String,
+      signatureCounter: json['signature_counter'] as String,
+      timeStart: json['time_start'] as String,
+      timeEnd: json['time_end'] as String,
+      signatureAlgorithm: json['signature_algorithm'] as String,
+      timestampFormat: json['timestamp_format'] as String,
+      signature: json['signature'] as String,
+      publicKey: json['public_key'] as String,
+    );
+  }
+
+  JsonMap toJson() {
+    return {
+      'version': version,
+      'tss_serial_number': tssSerialNumber,
+      'receipt_type': receiptType,
+      'process_data': processData,
+      'transaction_number': transactionNumber,
+      'signature_counter': signatureCounter,
+      'time_start': timeStart,
+      'time_end': timeEnd,
+      'signature_algorithm': signatureAlgorithm,
+      'timestamp_format': timestampFormat,
+      'signature': signature,
+      'public_key': publicKey,
+    };
+  }
+}
+
 class OcrElement {
   const OcrElement({
     required this.text,
@@ -113,14 +368,14 @@ class OcrElement {
   });
 
   final String text;
-  final double confidence;
+  final double? confidence;
   final BoundingBox boundingBox;
   final List<Point> polygon;
 
   factory OcrElement.fromJson(JsonMap json) {
     return OcrElement(
       text: json['text'] as String,
-      confidence: (json['confidence'] as num).toDouble(),
+      confidence: _asNullableDouble(json['confidence']),
       boundingBox: BoundingBox.fromJson(
         _asJsonMap(json['boundingBox'], 'boundingBox'),
       ),
@@ -224,19 +479,24 @@ class ExtractMetadata {
 }
 
 class ExtractModels {
-  const ExtractModels({required this.ocr});
+  const ExtractModels({required this.ocr, required this.llm});
 
   final ExtractOcrModel ocr;
+  final ExtractLlmModel? llm;
 
   factory ExtractModels.fromJson(JsonMap json) {
     return ExtractModels(
       ocr: ExtractOcrModel.fromJson(_asJsonMap(json['ocr'], 'models.ocr')),
+      llm: json['llm'] == null
+          ? null
+          : ExtractLlmModel.fromJson(_asJsonMap(json['llm'], 'models.llm')),
     );
   }
 
   JsonMap toJson() {
     return {
       'ocr': ocr.toJson(),
+      'llm': llm?.toJson(),
     };
   }
 }
@@ -268,6 +528,34 @@ class ExtractOcrModel {
       'name': name,
       'textDetectionModel': textDetectionModel,
       'textRecognitionModel': textRecognitionModel,
+      'status': status,
+    };
+  }
+}
+
+class ExtractLlmModel {
+  const ExtractLlmModel({
+    required this.provider,
+    required this.model,
+    required this.status,
+  });
+
+  final String provider;
+  final String model;
+  final String status;
+
+  factory ExtractLlmModel.fromJson(JsonMap json) {
+    return ExtractLlmModel(
+      provider: json['provider'] as String,
+      model: json['model'] as String,
+      status: json['status'] as String,
+    );
+  }
+
+  JsonMap toJson() {
+    return {
+      'provider': provider,
+      'model': model,
       'status': status,
     };
   }
@@ -306,6 +594,18 @@ List<Point> _parsePoints(Object? value) {
   return list
       .map((element) => Point.fromJson(_asJsonMap(element, 'point')))
       .toList(growable: false);
+}
+
+double? _asNullableDouble(Object? value) {
+  if (value == null) {
+    return null;
+  }
+
+  if (value is num) {
+    return value.toDouble();
+  }
+
+  throw FormatException('Expected numeric value or null.');
 }
 
 JsonMap _asJsonMap(Object? value, String fieldName) {

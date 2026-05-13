@@ -93,6 +93,7 @@ void main() {
       fetchedBody['extraction']['requestId'],
       createdBody['extractRequestId'],
     );
+    expect(fetchedBody['extraction']['structured'], isA<Map<String, dynamic>>());
   });
 
   test('restart clears stale extraction payload and returns pending receipt', () async {

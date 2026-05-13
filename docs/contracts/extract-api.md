@@ -47,11 +47,12 @@ Form fields:
 
 ## 3. Response Schema
 
-The extraction response currently contains five top-level fields:
+The extraction response currently contains six top-level fields:
 - `requestId`
 - `source`
 - `warnings`
 - `ocr`
+- `structured`
 - `metadata`
 
 ### Top-level object
@@ -62,6 +63,7 @@ The extraction response currently contains five top-level fields:
 | `source` | object | Metadata about the uploaded file processed by the extractor. |
 | `warnings` | array | Extraction warnings. The sample fixture contains an empty array. |
 | `ocr` | object | Raw OCR output, including full text and geometric OCR elements. |
+| `structured` | object | Optional structured extraction results derived from OCR text and TSE QR data. |
 | `metadata` | object | Extractor, model, and runtime metadata. |
 
 ### `source`
@@ -122,6 +124,31 @@ The extraction response currently contains five top-level fields:
 | `textDetectionModel` | string | OCR text detection model identifier. |
 | `textRecognitionModel` | string | OCR text recognition model identifier. |
 | `status` | string | OCR model status. |
+
+### `structured`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `lineItems` | object or `null` | Structured line item extraction result from the LLM. `null` when extraction failed or was skipped. |
+| `merchantInfo` | object or `null` | Structured merchant extraction result from the LLM. `null` when extraction failed or was skipped. |
+| `qrcode_tse_data` | object or `null` | Parsed TSE QR payload when a supported KassenSichV QR code was found. |
+
+### `structured.qrcode_tse_data`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `raw_text` | string | Raw TSE QR payload as decoded from the receipt image. |
+| `format` | string | Currently `kassensichv-v0` for supported MVP payloads. |
+| `is_tse_qr` | boolean | Indicates that the detected QR payload matched the supported TSE format. |
+| `parsed` | object or `null` | Parsed field mapping for supported `V0;...;Kassenbeleg-V1` payloads. |
+
+### `metadata.models.llm`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `provider` | string | LLM provider name. Currently `openai`. |
+| `model` | string | LLM model name used for structured extraction. |
+| `status` | string | Structured extraction state such as `ok`, `partial`, `failed`, or `missing_token`. |
 
 ### `metadata.runtime`
 
@@ -204,6 +231,11 @@ The extraction response currently contains five top-level fields:
       }
     ]
   },
+  "structured": {
+    "lineItems": null,
+    "merchantInfo": null,
+    "qrcode_tse_data": null
+  },
   "metadata": {
     "extractor": "ris_extract",
     "version": "0.2.0",
@@ -213,6 +245,11 @@ The extraction response currently contains five top-level fields:
         "textDetectionModel": "PP-OCRv5_mobile_det",
         "textRecognitionModel": "latin_PP-OCRv5_mobile_rec",
         "status": "ok"
+      },
+      "llm": {
+        "provider": "openai",
+        "model": "gpt-5.4-nano",
+        "status": "missing_token"
       }
     },
     "runtime": {
@@ -234,4 +271,7 @@ The extraction service must follow these rules:
 - extraction should not fail only because some fields cannot be detected
 - `warnings` must always be present, even when it is empty
 - `ocr.rawText`, `ocr.blocks`, and `ocr.lines` are part of the current response contract
+- `structured` must always be present, even when all nested values are `null`
+- OpenAI failures must not fail the full extraction if OCR succeeded; they should surface through `warnings` and `metadata.models.llm.status`
+- only supported TSE QR payloads should populate `structured.qrcode_tse_data`
 - polygon point counts are not guaranteed to be fixed across all OCR elements

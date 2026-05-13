@@ -24,6 +24,9 @@ class ReceiptResponseMapper {
               requestId: receipt.extraction!.requestId,
               rawText: receipt.extraction!.rawText,
               ocr: ExtractOcr.fromJson(receipt.extraction!.ocrData),
+              structured: ExtractStructured.fromJson(
+                receipt.extraction!.structuredData,
+              ),
               metadata: ExtractMetadata.fromJson(receipt.extraction!.metadata),
               warnings: receipt.extraction!.warnings,
             ),

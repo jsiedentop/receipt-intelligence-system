@@ -5257,6 +5257,29 @@
             }
         ]
     },
+    "structured": {
+        "lineItems": null,
+        "merchantInfo": null,
+        "qrcode_tse_data": {
+            "raw_text": "V0;000000001750336203-53R0511374;Kassenbeleg-V1;Beleg^43.72_0.00_0.00_0.00_0.00^43.72:Unbar;433860;994162;2025-07-02T11:18:39.000Z;2025-07-02T11:18:39.000Z;ecdsa-plain-SHA384;unixTime;ZVXKlqcH7CJZPnkmZg4KmFKe6lM8HgNvUWkgeCJuzCw/yR5HAylLbyXsjXK7zoiZH8w4I7AELj+v5GYCDp5meV3mX31eGvgu2MFIkhkTv+W1W49lyKMWGDPxfY+YmwTo;BETIHKNDSWcH9yNq7UKUUeeY19k5R0RyTxbL6q7mh7DfPV185OgqDRKI8b4iJVDYBC47dPDuW95wLIIP4EuraZA7KWqHnxPpOkaz9iZ73PMMLPjRmkMKlmubWZ9BW7KaNQ==",
+            "format": "kassensichv-v0",
+            "is_tse_qr": true,
+            "parsed": {
+                "version": "V0",
+                "tss_serial_number": "000000001750336203-53R0511374",
+                "receipt_type": "Kassenbeleg-V1",
+                "process_data": "Beleg^43.72_0.00_0.00_0.00_0.00^43.72:Unbar",
+                "transaction_number": "433860",
+                "signature_counter": "994162",
+                "time_start": "2025-07-02T11:18:39.000Z",
+                "time_end": "2025-07-02T11:18:39.000Z",
+                "signature_algorithm": "ecdsa-plain-SHA384",
+                "timestamp_format": "unixTime",
+                "signature": "ZVXKlqcH7CJZPnkmZg4KmFKe6lM8HgNvUWkgeCJuzCw/yR5HAylLbyXsjXK7zoiZH8w4I7AELj+v5GYCDp5meV3mX31eGvgu2MFIkhkTv+W1W49lyKMWGDPxfY+YmwTo",
+                "public_key": "BETIHKNDSWcH9yNq7UKUUeeY19k5R0RyTxbL6q7mh7DfPV185OgqDRKI8b4iJVDYBC47dPDuW95wLIIP4EuraZA7KWqHnxPpOkaz9iZ73PMMLPjRmkMKlmubWZ9BW7KaNQ=="
+            }
+        }
+    },
     "metadata": {
         "extractor": "ris_extract_donut",
         "version": "0.2.0",
@@ -5266,6 +5289,11 @@
                 "textDetectionModel": "PP-OCRv5_mobile_det",
                 "textRecognitionModel": "latin_PP-OCRv5_mobile_rec",
                 "status": "ok"
+            },
+            "llm": {
+                "provider": "openai",
+                "model": "gpt-5.4-nano",
+                "status": "missing_token"
             }
         },
         "runtime": {

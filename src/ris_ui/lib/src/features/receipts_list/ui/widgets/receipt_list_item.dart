@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:ris_core/ris_core.dart';
 
 import '../../../../core/widgets/status_badge.dart';
+import '../../../receipts_shared/ui/widgets/extraction_summary.dart';
 
 class ReceiptListItem extends StatelessWidget {
   const ReceiptListItem({
@@ -49,12 +50,7 @@ class ReceiptListItem extends StatelessWidget {
               Text('Mime type: ${receipt.image.mimeType}'),
               if (receipt.extraction != null) ...[
                 const SizedBox(height: 12),
-                Text(
-                  receipt.extraction!.rawText,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall,
-                ),
+                ExtractionSummary(extraction: receipt.extraction!),
               ],
             ],
           ),

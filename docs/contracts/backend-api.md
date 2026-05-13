@@ -168,6 +168,11 @@ Example response:
         "blocks": [],
         "lines": []
       },
+      "structured": {
+        "lineItems": null,
+        "merchantInfo": null,
+        "qrcode_tse_data": null
+      },
       "metadata": {
         "extractor": "ris_extract_donut",
         "version": "0.2.0",
@@ -177,6 +182,11 @@ Example response:
             "textDetectionModel": "PP-OCRv5_mobile_det",
             "textRecognitionModel": "latin_PP-OCRv5_mobile_rec",
             "status": "ok"
+          },
+          "llm": {
+            "provider": "openai",
+            "model": "gpt-5.4-nano",
+            "status": "missing_token"
           }
         },
         "runtime": {
@@ -235,6 +245,7 @@ Current response shape:
 | `requestId` | string | Caller-generated extraction request identifier created by the backend and echoed back by `ris_extract`. |
 | `rawText` | string | Convenience copy of `ocr.rawText`. |
 | `ocr` | object | Raw OCR payload returned by `ris_extract`. |
+| `structured` | object | Structured extraction payload returned by `ris_extract`, including optional LLM output and parsed TSE QR data. |
 | `metadata` | object | Extractor metadata returned by `ris_extract`. |
 | `warnings` | array | Extraction warnings returned by `ris_extract`. |
 

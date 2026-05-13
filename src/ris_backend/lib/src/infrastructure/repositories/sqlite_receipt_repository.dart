@@ -46,7 +46,7 @@ class SqliteReceiptRepository implements ReceiptRepository {
         ],
       );
       if (receipt.extraction case final extraction?) {
-        _insertExtraction(
+      _insertExtraction(
           receiptId: receipt.id,
           requestId: receipt.extractRequestId,
           extraction: extraction,
@@ -133,6 +133,7 @@ class SqliteReceiptRepository implements ReceiptRepository {
           requestId: extraction.requestId,
           rawText: extraction.ocr.rawText,
           ocrData: extraction.ocr.toJson(),
+          structuredData: extraction.structured.toJson(),
           metadata: extraction.metadata.toJson(),
           warnings: extraction.warnings,
         ),
@@ -326,6 +327,7 @@ class SqliteReceiptRepository implements ReceiptRepository {
     final rows = _database.select(
       '''
       SELECT request_id, raw_text, ocr_json, metadata_json
+      , structured_json
       FROM receipt_extractions
       WHERE receipt_id = ?;
       ''',
@@ -348,6 +350,7 @@ class SqliteReceiptRepository implements ReceiptRepository {
       requestId: ExtractRequestId(row['request_id'] as String),
       rawText: row['raw_text'] as String,
       ocrData: _decodeJsonMap(row['ocr_json'] as String),
+      structuredData: _decodeJsonMap(row['structured_json'] as String),
       metadata: _decodeJsonMap(row['metadata_json'] as String),
       warnings: warnings,
     );
@@ -390,14 +393,16 @@ class SqliteReceiptRepository implements ReceiptRepository {
         request_id,
         raw_text,
         ocr_json,
+        structured_json,
         metadata_json
-      ) VALUES (?, ?, ?, ?, ?);
+      ) VALUES (?, ?, ?, ?, ?, ?);
       ''',
       [
         receiptId.value,
         requestId.value,
         extraction.rawText,
         jsonEncode(extraction.ocrData),
+        jsonEncode(extraction.structuredData),
         jsonEncode(extraction.metadata),
       ],
     );

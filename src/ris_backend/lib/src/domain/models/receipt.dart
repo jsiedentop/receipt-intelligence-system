@@ -62,6 +62,7 @@ class ReceiptExtraction {
     required this.requestId,
     required this.rawText,
     required this.ocrData,
+    required this.structuredData,
     required this.metadata,
     required this.warnings,
   });
@@ -69,6 +70,7 @@ class ReceiptExtraction {
   final ExtractRequestId requestId;
   final String rawText;
   final Map<String, dynamic> ocrData;
+  final Map<String, dynamic> structuredData;
   final Map<String, dynamic> metadata;
   final List<Object?> warnings;
 
@@ -77,6 +79,7 @@ class ReceiptExtraction {
       'requestId': requestId.value,
       'rawText': rawText,
       'ocr': ocrData,
+      'structured': structuredData,
       'metadata': metadata,
       'warnings': warnings,
     };

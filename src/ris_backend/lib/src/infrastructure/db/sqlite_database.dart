@@ -32,6 +32,7 @@ class SqliteDatabase {
         receipt_id TEXT PRIMARY KEY,
         raw_text TEXT NOT NULL,
         ocr_json TEXT NOT NULL,
+        structured_json TEXT NOT NULL DEFAULT '{}',
         metadata_json TEXT NOT NULL,
         FOREIGN KEY (receipt_id) REFERENCES receipts(id) ON DELETE CASCADE
       );
@@ -52,6 +53,11 @@ class SqliteDatabase {
     if (!receiptExtractionColumns.contains('request_id')) {
       database.execute('ALTER TABLE receipt_extractions ADD COLUMN request_id TEXT;');
       database.execute('UPDATE receipt_extractions SET request_id = (SELECT extract_request_id FROM receipts WHERE receipts.id = receipt_extractions.receipt_id);');
+    }
+    if (!receiptExtractionColumns.contains('structured_json')) {
+      database.execute(
+        "ALTER TABLE receipt_extractions ADD COLUMN structured_json TEXT NOT NULL DEFAULT '{}';",
+      );
     }
 
     final receiptWarningColumns = database

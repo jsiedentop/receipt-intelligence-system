@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/widgets/app_shell.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../receipt_detail/ui/receipt_detail_screen.dart';
+import '../../receipts_shared/ui/widgets/extraction_summary.dart';
 import '../data/receipt_upload_repository.dart';
 import '../logic/receipt_upload_controller.dart';
 
@@ -129,10 +130,11 @@ class _ReceiptUploadView extends StatelessWidget {
                         if (uploadedReceipt.extraction != null) ...[
                           const SizedBox(height: 16),
                           Text(
-                            uploadedReceipt.extraction!.rawText,
-                            maxLines: 6,
-                            overflow: TextOverflow.ellipsis,
+                            'Structured extraction',
+                            style: Theme.of(context).textTheme.titleMedium,
                           ),
+                          const SizedBox(height: 8),
+                          ExtractionSummary(extraction: uploadedReceipt.extraction!),
                         ],
                         const SizedBox(height: 20),
                         FilledButton.icon(
